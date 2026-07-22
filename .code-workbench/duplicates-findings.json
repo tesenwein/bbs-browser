@@ -1,0 +1,647 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": 1784611394099,
+  "root": "/home/tesenwein/bbs-browser",
+  "groups": [
+    {
+      "cloneType": "renamed",
+      "similarity": 1,
+      "count": 13,
+      "fingerprint": "f64c1697317b4bca",
+      "members": [
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t02",
+          "kind": "function",
+          "startLine": 59,
+          "endLine": 64,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t04",
+          "kind": "function",
+          "startLine": 76,
+          "endLine": 81,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t08",
+          "kind": "function",
+          "startLine": 111,
+          "endLine": 116,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t11",
+          "kind": "function",
+          "startLine": 136,
+          "endLine": 142,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t13",
+          "kind": "function",
+          "startLine": 154,
+          "endLine": 159,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t17",
+          "kind": "function",
+          "startLine": 187,
+          "endLine": 192,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t18",
+          "kind": "function",
+          "startLine": 195,
+          "endLine": 200,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t21",
+          "kind": "function",
+          "startLine": 220,
+          "endLine": 225,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t29",
+          "kind": "function",
+          "startLine": 288,
+          "endLine": 293,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t31",
+          "kind": "function",
+          "startLine": 304,
+          "endLine": 310,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t34",
+          "kind": "function",
+          "startLine": 333,
+          "endLine": 339,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t39",
+          "kind": "function",
+          "startLine": 380,
+          "endLine": 386,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t48",
+          "kind": "function",
+          "startLine": 466,
+          "endLine": 472,
+          "lines": 7
+        }
+      ]
+    },
+    {
+      "cloneType": "renamed",
+      "similarity": 1,
+      "count": 9,
+      "fingerprint": "18c7c193ae6ed610",
+      "members": [
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t03",
+          "kind": "function",
+          "startLine": 67,
+          "endLine": 73,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t05",
+          "kind": "function",
+          "startLine": 84,
+          "endLine": 90,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t12",
+          "kind": "function",
+          "startLine": 145,
+          "endLine": 151,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t20",
+          "kind": "function",
+          "startLine": 211,
+          "endLine": 217,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t24",
+          "kind": "function",
+          "startLine": 244,
+          "endLine": 250,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t37",
+          "kind": "function",
+          "startLine": 360,
+          "endLine": 367,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t40",
+          "kind": "function",
+          "startLine": 389,
+          "endLine": 396,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t46",
+          "kind": "function",
+          "startLine": 446,
+          "endLine": 453,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t47",
+          "kind": "function",
+          "startLine": 456,
+          "endLine": 463,
+          "lines": 8
+        }
+      ]
+    },
+    {
+      "cloneType": "structural",
+      "similarity": 0.918,
+      "count": 7,
+      "fingerprint": "28b7af6abc2f7589",
+      "members": [
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t01",
+          "kind": "function",
+          "startLine": 49,
+          "endLine": 56,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t06",
+          "kind": "function",
+          "startLine": 93,
+          "endLine": 100,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t25",
+          "kind": "function",
+          "startLine": 253,
+          "endLine": 260,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t32",
+          "kind": "function",
+          "startLine": 313,
+          "endLine": 320,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t33",
+          "kind": "function",
+          "startLine": 323,
+          "endLine": 330,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t38",
+          "kind": "function",
+          "startLine": 370,
+          "endLine": 377,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t50",
+          "kind": "function",
+          "startLine": 485,
+          "endLine": 494,
+          "lines": 10
+        }
+      ]
+    },
+    {
+      "cloneType": "renamed",
+      "similarity": 1,
+      "count": 9,
+      "fingerprint": "a5d92dbcb92e42e1",
+      "members": [
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t07",
+          "kind": "function",
+          "startLine": 103,
+          "endLine": 108,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t10",
+          "kind": "function",
+          "startLine": 128,
+          "endLine": 133,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t14",
+          "kind": "function",
+          "startLine": 162,
+          "endLine": 167,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t16",
+          "kind": "function",
+          "startLine": 179,
+          "endLine": 184,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t19",
+          "kind": "function",
+          "startLine": 203,
+          "endLine": 208,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t22",
+          "kind": "function",
+          "startLine": 228,
+          "endLine": 233,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t27",
+          "kind": "function",
+          "startLine": 271,
+          "endLine": 276,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t30",
+          "kind": "function",
+          "startLine": 296,
+          "endLine": 301,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t36",
+          "kind": "function",
+          "startLine": 351,
+          "endLine": 357,
+          "lines": 7
+        }
+      ]
+    },
+    {
+      "cloneType": "renamed",
+      "similarity": 1,
+      "count": 4,
+      "fingerprint": "5bd3e6617b50ba26",
+      "members": [
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t15",
+          "kind": "function",
+          "startLine": 170,
+          "endLine": 176,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t28",
+          "kind": "function",
+          "startLine": 279,
+          "endLine": 285,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t41",
+          "kind": "function",
+          "startLine": 399,
+          "endLine": 406,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t49",
+          "kind": "function",
+          "startLine": 475,
+          "endLine": 482,
+          "lines": 8
+        }
+      ]
+    },
+    {
+      "cloneType": "structural",
+      "similarity": 0.852,
+      "count": 2,
+      "fingerprint": "f60a95b29853b8ba",
+      "members": [
+        {
+          "file": "bbs_browser/db.py",
+          "name": "set_section",
+          "kind": "function",
+          "startLine": 182,
+          "endLine": 188,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/db.py",
+          "name": "design_put",
+          "kind": "function",
+          "startLine": 201,
+          "endLine": 212,
+          "lines": 12
+        }
+      ]
+    },
+    {
+      "cloneType": "structural",
+      "similarity": 0.951,
+      "count": 2,
+      "fingerprint": "9cac1ee532637eae",
+      "members": [
+        {
+          "file": "bbs_browser/db.py",
+          "name": "chat_history",
+          "kind": "function",
+          "startLine": 297,
+          "endLine": 303,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/db.py",
+          "name": "chat_transcript",
+          "kind": "function",
+          "startLine": 306,
+          "endLine": 316,
+          "lines": 11
+        }
+      ]
+    },
+    {
+      "cloneType": "renamed",
+      "similarity": 1,
+      "count": 2,
+      "fingerprint": "81ab957c163f77a3",
+      "members": [
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "forget_logo",
+          "kind": "function",
+          "startLine": 563,
+          "endLine": 570,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "reset",
+          "kind": "function",
+          "startLine": 598,
+          "endLine": 606,
+          "lines": 9
+        }
+      ]
+    },
+    {
+      "cloneType": "renamed",
+      "similarity": 1,
+      "count": 2,
+      "fingerprint": "18e636afd1a20228",
+      "members": [
+        {
+          "file": "bbs_browser/browser.py",
+          "name": "back",
+          "kind": "method",
+          "startLine": 168,
+          "endLine": 175,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/browser.py",
+          "name": "forward",
+          "kind": "method",
+          "startLine": 177,
+          "endLine": 184,
+          "lines": 8
+        }
+      ]
+    },
+    {
+      "cloneType": "structural",
+      "similarity": 1,
+      "count": 2,
+      "fingerprint": "57820f83fcf54286",
+      "members": [
+        {
+          "file": "bbs_browser/sysop.py",
+          "name": "summarize",
+          "kind": "method",
+          "startLine": 1027,
+          "endLine": 1034,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/sysop.py",
+          "name": "ask",
+          "kind": "method",
+          "startLine": 1036,
+          "endLine": 1043,
+          "lines": 8
+        }
+      ]
+    },
+    {
+      "cloneType": "structural",
+      "similarity": 0.9,
+      "count": 2,
+      "fingerprint": "b9c1f1c37f7c4d83",
+      "members": [
+        {
+          "file": "bbs_browser/sysop.py",
+          "name": "_anthropic_tool_defs",
+          "kind": "function",
+          "startLine": 220,
+          "endLine": 226,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/sysop.py",
+          "name": "_openai_tool_defs",
+          "kind": "function",
+          "startLine": 229,
+          "endLine": 236,
+          "lines": 8
+        }
+      ]
+    },
+    {
+      "cloneType": "renamed",
+      "similarity": 1,
+      "count": 2,
+      "fingerprint": "429c6076fe14fc36",
+      "members": [
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t35",
+          "kind": "function",
+          "startLine": 342,
+          "endLine": 348,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t45",
+          "kind": "function",
+          "startLine": 437,
+          "endLine": 443,
+          "lines": 7
+        }
+      ]
+    },
+    {
+      "cloneType": "structural",
+      "similarity": 0.947,
+      "count": 2,
+      "fingerprint": "e5712ac28cfd8b36",
+      "members": [
+        {
+          "file": "bbs_browser/nostalgia.py",
+          "name": "__getattr__",
+          "kind": "function",
+          "startLine": 116,
+          "endLine": 123,
+          "lines": 8
+        },
+        {
+          "file": "bbs_browser/terminal.py",
+          "name": "__getattr__",
+          "kind": "function",
+          "startLine": 23,
+          "endLine": 28,
+          "lines": 6
+        }
+      ]
+    },
+    {
+      "cloneType": "structural",
+      "similarity": 0.929,
+      "count": 2,
+      "fingerprint": "b22ca5792ce9b105",
+      "members": [
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t26",
+          "kind": "function",
+          "startLine": 263,
+          "endLine": 268,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t43",
+          "kind": "function",
+          "startLine": 418,
+          "endLine": 425,
+          "lines": 8
+        }
+      ]
+    },
+    {
+      "cloneType": "structural",
+      "similarity": 0.971,
+      "count": 2,
+      "fingerprint": "37b6739fedce3c0e",
+      "members": [
+        {
+          "file": "bbs_browser/sysop.py",
+          "name": "seite_anwaehlen",
+          "kind": "function",
+          "startLine": 515,
+          "endLine": 521,
+          "lines": 7
+        },
+        {
+          "file": "bbs_browser/sysop.py",
+          "name": "lesezeichen_anwaehlen",
+          "kind": "function",
+          "startLine": 674,
+          "endLine": 680,
+          "lines": 7
+        }
+      ]
+    },
+    {
+      "cloneType": "structural",
+      "similarity": 0.897,
+      "count": 2,
+      "fingerprint": "a772d6febd2a9f9a",
+      "members": [
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t23",
+          "kind": "function",
+          "startLine": 236,
+          "endLine": 241,
+          "lines": 6
+        },
+        {
+          "file": "bbs_browser/headers.py",
+          "name": "_t42",
+          "kind": "function",
+          "startLine": 409,
+          "endLine": 415,
+          "lines": 7
+        }
+      ]
+    }
+  ]
+}

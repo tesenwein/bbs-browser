@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "files": [
+    ".claude/agents/cw-fixer.md",
+    ".claude/agents/cw-implementer.md",
+    ".claude/agents/cw-reviewer.md",
+    ".claude/skills/cw-arch-audit/SKILL.md",
+    ".claude/skills/cw-arch/SKILL.md",
+    ".claude/skills/cw-dead-code/SKILL.md",
+    ".claude/skills/cw-duplicate-cleanup/SKILL.md",
+    ".claude/skills/cw-fix/SKILL.md",
+    ".claude/skills/cw-implement/SKILL.md",
+    ".claude/skills/cw-plan/SKILL.md",
+    ".claude/skills/cw-review/SKILL.md",
+    ".claude/skills/cw-type-safety/SKILL.md",
+    ".claude/skills/cw-work/SKILL.md"
+  ]
+}

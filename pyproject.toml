@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bbs-browser"
+version = "2.5.0"
+description = "Verwandelt das moderne Internet in ein Retro-BBS-Terminal (1985-Feeling, nummerierte Links, ASCII-Art)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "requests>=2.28",
+    "beautifulsoup4>=4.12",
+    "Pillow>=10.0",
+    "firecrawl-py",
+    # pyfiglet setzt die Plakat-Titel in der Intro-Schrift (ANSI Shadow). Ohne
+    # ihn faellt der Renderer auf die grobe Builtin-Blockschrift zurueck — die
+    # neuen Titel kaemen dann nur MIT dem ai-Extra zur Geltung. Da pyfiglet
+    # reines, abhaengigkeitsfreies Python ist, gehoert es in den Kern.
+    "pyfiglet>=1.0",
+    # Echtes Chromium fuer Seiten, die ihren Inhalt erst per JS aufbauen. Das
+    # Browser-Binary zieht der Installer separat ('playwright install
+    # chromium'); fehlt es, faellt der Abruf still auf requests zurueck.
+    "playwright>=1.40",
+    # API-Keys gehoeren in den Schluesselbund des Systems, nicht im Klartext in
+    # die Datenbank. Fehlt ein nutzbares Backend, faellt vault.py still auf die
+    # alte Ablage zurueck.
+    "keyring>=24.0",
+    # KI-Antworten kommen als Markdown zurueck; ohne rich faellt markdown.py auf
+    # Rohtext zurueck und die Sternchen/Rauten stehen im Terminal. Das betrifft
+    # jede Ausgabe, nicht nur das ai-Extra — deshalb Kern-Abhaengigkeit.
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+firecrawl = []  # leer: firecrawl-py ist jetzt Kern-Abhaengigkeit; Extra bleibt fuer alte Install-Anleitungen
+ai = ["anthropic>=0.40", "openai>=1.40", "pyfiglet>=1.0"]
+
+[project.scripts]
+bbs = "bbs_browser.cli:main"
+
+[tool.setuptools]
+packages = ["bbs_browser", "bbs_browser.i18n"]

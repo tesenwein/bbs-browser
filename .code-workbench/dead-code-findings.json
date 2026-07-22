@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": 1784611305413,
+  "root": "/home/tesenwein/bbs-browser",
+  "items": [
+    {
+      "kind": "unused-export",
+      "file": ".venv/lib/python3.10/site-packages/playwright/driver/package/lib/vite/recorder/assets/codeMirrorModule-DeBYQozu.js",
+      "name": "default",
+      "startLine": 32,
+      "detail": "Exported 'default' has no references anywhere in the workspace",
+      "fingerprint": "46dea654dfc5abec"
+    },
+    {
+      "kind": "unused-export",
+      "file": ".venv/lib/python3.10/site-packages/playwright/driver/package/lib/vite/traceViewer/assets/codeMirrorModule-LEHpjmcn.js",
+      "name": "default",
+      "startLine": 32,
+      "detail": "Exported 'default' has no references anywhere in the workspace",
+      "fingerprint": "8d76b570cd66c819"
+    },
+    {
+      "kind": "unused-export",
+      "file": ".venv/lib/python3.10/site-packages/playwright/driver/package/lib/vite/traceViewer/assets/xtermModule-CsJ4vdCR.js",
+      "name": "default",
+      "startLine": 9,
+      "detail": "Exported 'default' has no references anywhere in the workspace",
+      "fingerprint": "ac6e404ac8f58fd6"
+    }
+  ]
+}

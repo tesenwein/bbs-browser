@@ -1,0 +1,44 @@
+{
+  "slug": "newsdesk",
+  "name": "Newsdesk (bulletin sources)",
+  "description": "Normalisation layer between the bulletin board and its news sources. A caller may configure any number of sources of two very different kinds — RSS/Atom feeds (dated, verbatim, free) and plain news pages (undated, read and rewritten by the AI SysOp, needs a key). newsdesk.fetch() funnels every kind into one entry shape {text, title, url, ts, source, kind}; newsdesk.merge() then orders them newest-first and drops duplicates. bulletins.py keeps only the cache, the cadence and the presentation.",
+  "files": [
+    "bbs_browser/newsdesk.py",
+    "bbs_browser/bulletins.py",
+    "bbs_browser/feeds.py",
+    "bbs_browser/configmenu.py"
+  ],
+  "guidelines": [
+    "Every new kind of source gets its own _from_* function that returns the standard entry shape — never special-case a source kind downstream of fetch().",
+    "A source that fails must return [] and never take the whole board down: fetch() swallows its exceptions on purpose.",
+    "Each source may contribute up to `count` entries; the cut to `count` happens after the merge, so one busy feed cannot crowd out a quiet one.",
+    "The bulletin cache is keyed by a signature of the enabled source URLs (bulletins._signature) — changing the mix must invalidate it.",
+    "Feed dates are parsed in feeds.timestamp(); a date without a timezone is read as UTC so sources stay comparable."
+  ],
+  "anti_patterns": [
+    "Stamping undated entries (AI-read pages) with the fetch time so they can join the timeline — a made-up date silently outranks real ones. They sort after the dated entries instead.",
+    "Storing a single 'url' in the bulletins config: it is a list of sources now, and newsdesk.normalize() folds the legacy string form in.",
+    "Deduping only by URL — wire stories arrive with different URLs but identical headlines, so _key() falls back to the normalised title."
+  ],
+  "decisions": [
+    "Feeds are tried first for every source URL because that path is free; a page is only fetched when the feed parse yields nothing, and a feed advertised in the page's <head> still wins over reading it with the AI.",
+    "needs_ai() is true only when EVERY known source is a page — with one feed in the mix a refresh still delivers something and must not be blocked on a missing key.",
+    "MAX_SOURCES = 8, since every source is fetched during the dial-in sequence."
+  ],
+  "tags": [
+    "bulletins",
+    "rss",
+    "atom",
+    "feed",
+    "news",
+    "board",
+    "sources",
+    "merge",
+    "normalisation"
+  ],
+  "dependsOn": [
+    "feeds"
+  ],
+  "updatedAt": "2026-07-22T11:41:40.547Z",
+  "createdAt": "2026-07-22T11:41:40.547Z"
+}

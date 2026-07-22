@@ -1,0 +1,27 @@
+{
+  "slug": "mcp-client",
+  "name": "mcp-client",
+  "description": "",
+  "files": [
+    "bbs_browser/mcp.py",
+    "bbs_browser/sysop.py",
+    "bbs_browser/configmenu.py"
+  ],
+  "guidelines": [],
+  "anti_patterns": [],
+  "decisions": [],
+  "tags": [
+    "mcp",
+    "mcp-client",
+    "sysop",
+    "tools",
+    "oauth",
+    "bearer",
+    "streamable-http",
+    "json-rpc",
+    "connector"
+  ],
+  "dependsOn": [],
+  "updatedAt": "2026-07-21T04:44:00.984Z",
+  "createdAt": "2026-07-21T04:44:00.984Z"
+}
