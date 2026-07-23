@@ -47,6 +47,18 @@ STRINGS = {
         "de": "* {count} EINGABEMASKE(N) — 'fm' zum Ausfuellen",
         "en": "* {count} INPUT FORM(S) — 'fm' to fill in",
     },
+    "browser.template_used": {
+        "de": "* HAUSVORLAGE {domain} IM SATZ — 'x' neu setzen, 'x -' einschmelzen",
+        "en": "* HOUSE TEMPLATE {domain} IN THE FORME — 'x' to reset, 'x -' to melt down",
+    },
+    "browser.template_idle": {
+        "de": "* HAUSVORLAGE {domain} VORHANDEN, GREIFT HIER NICHT — HANDSATZ",
+        "en": "* HOUSE TEMPLATE {domain} EXISTS BUT FINDS NO HOLD HERE — HAND-SET",
+    },
+    "browser.template_none": {
+        "de": "* KEINE HAUSVORLAGE FUER {domain} — 'x' zum Setzen",
+        "en": "* NO HOUSE TEMPLATE FOR {domain} — 'x' to set one",
+    },
     "browser.forms_header": {"de": "EINGABEMASKEN DIESER SEITE", "en": "INPUT FORMS ON THIS PAGE"},
     "browser.form_header": {"de": "EINGABEMASKE · {title}", "en": "INPUT FORM · {title}"},
     "browser.form_field_count": {"de": "{count} FELD(ER)", "en": "{count} FIELD(S)"},

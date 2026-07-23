@@ -400,16 +400,21 @@ def _template_summary():
 
 
 def _template_menu(term, browser):
-    """Learned style templates: toggle the automatic mode, delete a single
-    domain's template, or throw them all away. Building/refreshing happens
-    with 'x' on the page itself — that's where the document is."""
+    """Learned style templates: toggle the auto-LEARNING, delete a single
+    domain's template, or throw them all away. Applying is not a setting —
+    a stored template is always used where it grips; the switch here only
+    decides whether unknown domains get one learned on first visit.
+    Building/refreshing happens with 'x' on the page itself — that's where
+    the document is."""
     def rows():
-        rows = [("a", t("configmenu.templates_auto"),
-                 _onoff(browser.auto_template))]
-        for i, tpl in enumerate(db.templates(), 1):
+        stored = db.templates()
+        rows = [("a", t("configmenu.templates_autolearn"),
+                 _onoff(browser.auto_template)),
+                (None, t("configmenu.templates_always_used"), "")]
+        for i, tpl in enumerate(stored, 1):
             rows.append((str(i), tpl["domain"],
-                         t("configmenu.templates_verified", n=tpl["verified"])))
-        if db.templates():
+                         t("configmenu.templates_row_hint", n=tpl["verified"])))
+        if stored:
             rows.append(("0", t("configmenu.templates_clear"), ""))
         return rows
 
@@ -433,10 +438,11 @@ def _template_menu(term, browser):
             term.error(t("configmenu.invalid_choice"))
             continue
         domain = templates[idx]["domain"]
-        answer = (term.prompt(t("configmenu.templates_delete_confirm", domain=domain)) or "").strip().lower()
-        if answer in ("j", "ja", "y", "yes"):
+        if (term.prompt(t("configmenu.templates_delete_confirm", domain=domain))
+                or "").strip().lower() in ("j", "ja", "y", "yes"):
             db.template_delete(domain)
-            at = "a"
+            term.type_out(t("configmenu.templates_deleted", domain=domain), delay=0.003)
+        at = "a"
 
 
 def _weather_summary():
