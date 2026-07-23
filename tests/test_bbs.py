@@ -746,6 +746,28 @@ finally:
 assert _jse is None and "JS-Absatz" in " ".join(b.get("content", "") for b in _jsp.blocks), \
     "Ohne Firecrawl muss Playwright rendern"
 
+# Firecrawl EINGESCHALTET, aber ohne Key/Host (SDK-Modus): es kann gar nicht
+# scrapen. Frueher blockierte dieses "enabled" Playwright, obwohl Firecrawl
+# nichts renderte — dann blieb die Seite ganz ohne JS-Renderer. Playwright
+# muss hier einspringen.
+_fc_calls2 = []
+_pagemod.firecrawl_scrape = lambda url, api_key, base: (
+    _fc_calls2.append(url), ("", "", "", None))[1]
+_jsmod.available = lambda: True
+_jsmod.render = lambda url, timeout=20000: (
+    '<html><head><title>JS</title></head><body><main>'
+    + "<p>JS-Absatz mit ordentlich Text fuer den Renderer.</p>" * 10
+    + '</main></body></html>', url)
+try:
+    _nkp, _nke = _pagemod.fetch_page(
+        "https://js.de/nokey", {"enabled": True}, render_images=False)
+finally:
+    _pagemod.firecrawl_scrape = _fc_orig
+    _jsmod.available, _jsmod.render = _av_orig, _rd_orig
+assert not _fc_calls2, "Firecrawl ohne Key darf gar nicht erst scrapen"
+assert _nke is None and "JS-Absatz" in " ".join(b.get("content", "") for b in _nkp.blocks), \
+    "Firecrawl an, aber ohne Key: Playwright muss trotzdem rendern"
+
 # The scrape must give Firecrawl time for the page's JS (waitFor also
 # forces the browser engine — without it Firecrawl returns SPAs as an empty shell).
 import sys as _sys, types as _types
