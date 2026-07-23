@@ -1141,7 +1141,7 @@ class SysOp:
         stored = styletpl.load(page.url)
         if not stored:
             return ""
-        old = {k: v for k, v in stored.items() if k != "skeleton"}
+        old = dict(stored)
         # Seeding the toolbox means a new draft only wins when it MEASURES
         # better — a revision can never come out worse than what we had.
         report = box.preview(old)
