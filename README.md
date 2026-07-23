@@ -519,11 +519,13 @@ renderer can actually set. The SysOp picks from it, it cannot invent one:
 | `pre`      | Code/preformatted, untouched |
 | `text`     | Body copy at full screen width |
 
-Plus a content root and a noise list. It lives in the database under the domain and carries
-the learned layout fingerprint: a page whose structure drifted too far (a
-different page type on the same domain) falls back to hand-set type instead of
-being torn apart. Dialing a page that a template actually took hold on says so:
-`*** SYS 0x22: HOUSE TEMPLATE heise.de IN THE FORME`.
+Plus a content root and a noise list. It lives in the database under the domain
+and is applied to every page of that domain. Before it is applied, its own
+selectors are counted against the page: find too few of them and the page falls
+back to hand-set type instead of being torn apart. Dialing a page that a
+template actually took hold on says so:
+`*** SYS 0x22: HOUSE TEMPLATE heise.de IN THE FORME`; a page it found no hold on
+says `!!! ERR 25: ... FINDS NO HOLD ON THIS GALLEY`.
 
 Another `x` resets the template, `x -` melts it down. Under `c` → AI SysOp →
 House templates you see every domain in the type case, can melt one or all of

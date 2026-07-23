@@ -13,6 +13,10 @@ STRINGS = {
         "de": "!!! ERR 22: KEIN ANDRUCK BESTANDEN - Seite bleibt im Handsatz.",
         "en": "!!! ERR 22: NO PROOF PASSED - page stays in hand-set type.",
     },
+    "styletpl.no_grip": {
+        "de": "!!! ERR 25: HAUSVORLAGE {domain} GREIFT AUF DIESER FAHNE NICHT - HANDSATZ.",
+        "en": "!!! ERR 25: HOUSE TEMPLATE {domain} FINDS NO HOLD ON THIS GALLEY - HAND-SET TYPE.",
+    },
     "styletpl.fit_failed": {
         "de": "!!! ERR 23: HAUSVORLAGE PASST NICHT AUF DIESE FAHNE - HANDSATZ.",
         "en": "!!! ERR 23: HOUSE TEMPLATE OFF THIS GALLEY - HAND-SET TYPE.",

@@ -14,9 +14,9 @@ Three things keep this honest:
   for. Up to VERIFY_LINKS further pages of the same domain are fetched and
   `preview` reports the draft's text balance on ALL of them. A template that
   only fits the page it was born on never passes.
-* The layout fingerprint (`skeleton`) — if a page's structure drifts too far
-  from what was learned, the template is skipped for that page (heuristics
-  take over) instead of tearing it apart.
+* The fit check (`coverage`) — before a template is applied, its OWN
+  selectors are counted against the page. Hit too few of them and the page
+  is left to the heuristic instead of being torn apart.
 * The validation (`sanitize`) — only known block kinds and selectors that
   soupsieve can actually compile survive.
 """
@@ -32,7 +32,7 @@ from . import db
 VERSION = 1
 MAX_RULES = 14
 MAX_DROP = 30
-SIMILARITY_MIN = 0.35   # below this the learned structure no longer matches
+COVERAGE_MIN = 0.4      # share of the template's own selectors that must hit
 VERIFY_LINKS = 3        # how many further pages of the domain a draft is tested on
 
 # The board's type case: every graphic component the renderer can actually
@@ -67,44 +67,31 @@ def domain_of(url):
     return parsed.netloc.removeprefix("www.").lower()
 
 
-# -- Layout fingerprint -----------------------------------------------------
+# -- Fit: does the template grip this page? ---------------------------------
 
 
-_CLASS_NOISE_RE = re.compile(r"^(?:[a-z]{1,2}|[0-9_-]+)$|[0-9a-f]{6,}|^css-|^sc-|^jsx-")
+def coverage(soup, template):
+    """(hits, total) over the template's OWN selectors: the content root and
+    every rule. `drop` selectors are left out — noise that isn't on this page
+    says nothing about the fit.
 
-
-def _tokens(soup):
-    """Structural tokens of a page: 'tag.class' for everything carrying a
-    meaningful class. Generated classes (css-1a2b3c, sc-xyz, hashes) are
-    dropped — those change on every deploy and would invalidate every
-    template."""
-    out = set()
-    for tag in soup.find_all(True):
-        names = tag.get("class") or []
-        ident = tag.get("id") or ""
-        useful = [c for c in names if len(c) >= 3 and not _CLASS_NOISE_RE.search(c.lower())]
-        for c in useful[:2]:
-            out.add(f"{tag.name}.{c.lower()}")
-        if ident and not _CLASS_NOISE_RE.search(ident.lower()):
-            out.add(f"{tag.name}#{ident.lower()}")
-    return out
-
-
-def skeleton(html_or_soup):
-    """The fingerprint as a sorted, truncated token list (JSON text)."""
-    return json.dumps(sorted(_tokens(_as_soup(html_or_soup)))[:400])
-
-
-def similarity(a, b):
-    """Jaccard similarity between two fingerprints (0.0 - 1.0)."""
-    try:
-        sa, sb = set(json.loads(a or "[]")), set(json.loads(b or "[]"))
-    except (ValueError, TypeError):
-        return 0.0
-    if not sa and not sb:
-        return 1.0
-    union = sa | sb
-    return len(sa & sb) / len(union) if union else 0.0
+    This deliberately replaces the earlier layout fingerprint. That one
+    compared the WHOLE document against the page the template was born on,
+    so a front page full of teasers and one article of the same site barely
+    overlapped and the template was refused on exactly the pages it was
+    meant for. What matters isn't whether two pages look alike — it's
+    whether the selectors we are about to apply find anything."""
+    sels = [rule["sel"] for rule in template.get("rules") or [] if rule.get("block") != "drop"]
+    if template.get("content"):
+        sels.append(template["content"])
+    hits = 0
+    for sel in sels:
+        try:
+            if soup.select_one(sel) is not None:
+                hits += 1
+        except Exception:
+            continue
+    return hits, len(sels)
 
 
 def _as_soup(html_or_soup):
@@ -266,14 +253,15 @@ def apply_to(soup, template, report=None):
     those refusals as text for preview()."""
     if not template:
         return soup
-    # Fit check: a page whose structure drifted too far from what was
-    # learned (a completely different page type on the same domain) is left
-    # to the heuristic instead of being torn apart. The template is NOT
-    # deleted — the next article page will match it again.
-    learned = template.get("skeleton")
-    if learned and similarity(learned, skeleton(soup)) < SIMILARITY_MIN:
+    # Fit check: if barely any of the template's own selectors find anything
+    # here, it has nothing to say about this page and the heuristic takes
+    # over. The template is NOT deleted — the next page will match it again.
+    hits, total = coverage(soup, template)
+    if total and hits < total * COVERAGE_MIN:
         if report is not None:
-            report.append("Page structure differs too much — template not applied.")
+            report.append(
+                f"Template not applied: only {hits} of {total} selectors "
+                f"match this page.")
         return soup
 
     total = max(len(soup.get_text(" ", strip=True)), 1)
@@ -576,8 +564,7 @@ class Toolbox:
 
 
 def load(url_or_domain):
-    """The stored template for a URL or domain, with the learned
-    fingerprint attached — apply_to uses it for the fit check."""
+    """The stored template for a URL or domain."""
     domain = domain_of(url_or_domain) if "://" in (url_or_domain or "") else url_or_domain
     if not domain:
         return None
@@ -589,14 +576,14 @@ def load(url_or_domain):
     except (ValueError, TypeError):
         db.template_delete(domain)
         return None
-    if not isinstance(data, dict):
-        return None
-    data["skeleton"] = row["skeleton"]
-    return data
+    return data if isinstance(data, dict) else None
 
 
-def save(domain, model, skel, template, verified=0):
-    db.template_put(domain, model, skel, json.dumps(template), verified)
+def save(domain, model, template, verified=0):
+    # The DB's `skeleton` column is a leftover of the old fingerprint fit
+    # check and is no longer written; the column stays so existing databases
+    # keep working unchanged.
+    db.template_put(domain, model, "", json.dumps(template), verified)
 
 
 def delete(domain):

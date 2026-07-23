@@ -109,6 +109,7 @@ class Browser:
             # Emergency brake: a template that leaves the page threadbare
             # tore it apart instead of styling it — then the heuristic gets
             # the page back. The template stays: it may fit the next page.
+            braked = False
             if template and page.low_text and page.html:
                 try:
                     from .page import build_page
@@ -119,9 +120,16 @@ class Browser:
                 if plain is not None and not plain.low_text:
                     term.error(t("styletpl.fit_failed"))
                     page = plain
+                    braked = True
             if getattr(page, "template_used", False):
                 term.type_out(t("styletpl.in_use",
                                 domain=styletpl.domain_of(page.url)), delay=0.002)
+            elif template and not braked:
+                # A template exists for this domain but didn't grip this page
+                # — say so instead of leaving the caller wondering why the
+                # page looks plain.
+                term.error(t("styletpl.no_grip",
+                             domain=styletpl.domain_of(page.url)))
             # JS-heavy page and Firecrawl in MCP mode? SysOp scrapes it afterward.
             thin = page.low_text
             # Firecrawl was on but didn't deliver (SDK mode, silent HTTP
@@ -177,8 +185,7 @@ class Browser:
             return page
         template, verified, total = result
         domain = styletpl.domain_of(page.url)
-        styletpl.save(domain, self.sysop.model_name(),
-                      styletpl.skeleton(page.html), template, verified)
+        styletpl.save(domain, self.sysop.model_name(), template, verified)
         self.term.type_out(
             t("styletpl.built", domain=domain, ok=verified, total=total), delay=0.003)
         return self.restyle(page) or page

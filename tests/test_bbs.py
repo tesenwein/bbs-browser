@@ -1560,7 +1560,7 @@ from bbs_browser import styletpl as _tpl
 
 # DB round trip: store, list, delete.
 assert _tpl.load("vorlage.de") is None
-_tpl.save("vorlage.de", "modell-x", _tpl.skeleton("<html><body><div class='inhalt'>x</div></body></html>"),
+_tpl.save("vorlage.de", "modell-x",
           {"version": 1, "content": ".inhalt", "drop": [], "rules": [], "note": ""}, verified=2)
 assert _tpl.exists("https://www.vorlage.de/seite")
 assert _tpl.load("https://vorlage.de/seite")["content"] == ".inhalt"
@@ -1596,13 +1596,6 @@ assert _tpl.sanitize("kein json", _soup_probe) is None
 # JSON out of a fenced answer is still found.
 assert _tpl.sanitize('```json\n{"content": "body"}\n```', _soup_probe)["content"] == "body"
 
-# Fingerprint: same structure ~ 1.0, foreign structure clearly below.
-_skel_a = _tpl.skeleton("<html><body><div class='artikel'><p class='lead'>x</p></div></body></html>")
-_skel_b = _tpl.skeleton("<html><body><div class='artikel'><p class='lead'>anderer Text</p></div></body></html>")
-_skel_c = _tpl.skeleton("<html><body><section class='shop'><ul class='warenkorb'><li>x</li></ul></section></body></html>")
-assert _tpl.similarity(_skel_a, _skel_b) == 1.0
-assert _tpl.similarity(_skel_a, _skel_c) < _tpl.SIMILARITY_MIN
-
 # Applying a template: the marked elements become BBS blocks, the content
 # root wins over the heuristic and "drop" throws its selector away.
 _tpl_html = ("<html><title>T</title><body>"
@@ -1623,11 +1616,36 @@ assert _kinds[0] == "banner" and _styled.blocks[0]["content"] == "Schlagzeile"
 assert "frame" in _kinds
 assert not any("Werbung" in b.get("content", "") for b in _styled.blocks)
 
-# The fit check: a page whose structure drifted too far is left to the
-# heuristic instead of being torn apart by the template.
-_tpl_far = dict(_tpl_data, skeleton=_skel_c)
+# The fit check counts the template's OWN selectors against the page: a
+# template that finds nothing here is left alone and the heuristic takes
+# over instead of the page being torn apart.
+_tpl_far = {"version": 1, "content": ".shop", "drop": [],
+            "rules": [{"sel": "ul.warenkorb", "block": "banner"},
+                      {"sel": "li.artikelnr", "block": "ticker"}],
+            "note": ""}
+assert _tpl.coverage(_BS(_tpl_html, "html.parser"), _tpl_far) == (0, 3)
 _unstyled = build_page(_tpl_html, "https://vorlage.de/a", render_images=False, template=_tpl_far)
 assert not any(b["type"] == "banner" for b in _unstyled.blocks)
+
+# ...but another page of the same domain with a completely different
+# surrounding structure still gets the template, as long as its selectors
+# grip. This is the front-page-vs-article case the old fingerprint failed.
+_tpl_other = ("<html><title>T</title><body>"
+              "<header class='kopfleiste'><nav class='hauptnavigation'>"
+              "<ul><li>Politik</li><li>Sport</li></ul></nav></header>"
+              "<div class='teaserraster'><div class='teaser'>Anriss eins</div>"
+              "<div class='teaser'>Anriss zwei</div></div>"
+              "<div class='artikel'>"
+              "<h1 class='titel'>Zweite Schlagzeile</h1>"
+              "<p class='lead'>Ein anderer Vorspann, ebenfalls lang genug fuer den Kasten.</p>"
+              "<p>Und der Fliesstext dieser zweiten Seite, der genug Zeichen mitbringt, "
+              "damit die Seite nicht als duenn gilt und die Notbremse greift.</p>"
+              "</div></body></html>")
+assert _tpl.coverage(_BS(_tpl_other, "html.parser"), _tpl_data) == (3, 3)
+_styled2 = build_page(_tpl_other, "https://vorlage.de/b", render_images=False, template=_tpl_data)
+assert _styled2.template_used
+assert _styled2.blocks[0]["type"] == "banner"
+assert not any("Anriss" in b.get("content", "") for b in _styled2.blocks)
 
 # check(): a template that shreds the page fails against the plain build.
 _plain = build_page(_tpl_html, "https://vorlage.de/a", render_images=False)
