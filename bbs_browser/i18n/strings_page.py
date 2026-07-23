@@ -9,6 +9,14 @@ STRINGS = {
         "de": "(Hinweis: wenig Text gefunden. Eventuell JS-lastige Seite, --firecrawl versuchen?)",
         "en": "(Note: little text found. Possibly JavaScript-heavy page, try --firecrawl?)",
     },
+    "page.low_text_warning_rendered": {
+        "de": "(Hinweis: auch nach JavaScript-Rendering wenig Text — Seite evtl. leer, login-geschuetzt oder blockiert.)",
+        "en": "(Note: little text even after JavaScript rendering — the page may be empty, login-gated, or blocked.)",
+    },
+    "page.low_text_warning_no_js": {
+        "de": "(Hinweis: wenig Text gefunden. Eventuell JS-lastige Seite — Playwright installieren (autom. JS-Rendering) oder --firecrawl nutzen.)",
+        "en": "(Note: little text found. Possibly JavaScript-heavy page — install Playwright for automatic JS rendering, or use --firecrawl.)",
+    },
     "page.firecrawl_enabled": {
         "de": "Firecrawl aktiviert",
         "en": "Firecrawl enabled",

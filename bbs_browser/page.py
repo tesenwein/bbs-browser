@@ -630,11 +630,16 @@ def _style_hint(tag, soup):
 
 
 def build_page(html, base_url, render_images=True, img_width=60, img_mode="blocks",
-               template=None):
+               template=None, js_rendered=None):
     """Read the page in document order and number all links.
     With `template` (the domain's learned style template, see styletpl.py)
     CSS selectors decide content root, noise and BBS style elements;
-    everything not matched by a rule continues through normal heuristics."""
+    everything not matched by a rule continues through normal heuristics.
+
+    `js_rendered` records how the HTML reached us — True if a JS renderer
+    (Firecrawl or Playwright) already ran the page, False for a bare HTTP
+    fetch, None if the caller doesn't know. It only steers the wording of the
+    too-little-text hint (see _low_text_message)."""
     soup = BeautifulSoup(html, "html.parser")
     jsonld = jsonld_article(soup)  # collect before discarding scripts
     logo_urls = find_logos(soup, base_url)  # ditto — logo hangs in <header>
@@ -947,9 +952,26 @@ def build_page(html, base_url, render_images=True, img_width=60, img_mode="block
             page.low_text = True
             page.blocks.append({
                 "type": "text",
-                "content": t("page.low_text_warning"),
+                "content": _low_text_message(js_rendered),
             })
     return mark_big_title(page)
+
+
+def _low_text_message(js_rendered):
+    """Pick the too-little-text hint that matches how the page was fetched.
+
+    A page that already went through a JS renderer (Firecrawl or Playwright)
+    had its JavaScript run — nagging the user to "try --firecrawl" there would
+    be wrong. Only when nothing rendered the JS, and no local renderer is even
+    installed, do we point at the ways to get one."""
+    from . import jsrender
+    if js_rendered is None:
+        js_rendered = jsrender.available()
+    if js_rendered:
+        return t("page.low_text_warning_rendered")
+    if not jsrender.available():
+        return t("page.low_text_warning_no_js")
+    return t("page.low_text_warning")
 
 
 MD_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
@@ -1340,8 +1362,14 @@ def fetch_page(url, firecrawl_cfg=None, render_images=True, img_width=60,
     # Firecrawl already failed repeatedly this session? Then don't wait for
     # its timeout again on every page — treat it as switched off.
     fc_active = bool(cfg.get("enabled")) and not firecrawl_muted()
-    # Self-hosting often runs without a key — then the host is enough.
-    if fc_active and not cfg.get("use_mcp") and (api_key or base):
+    # Split "enabled" into what Firecrawl can ACTUALLY do here. Enabled alone
+    # is not a renderer: a Firecrawl toggled on but never given a key (and no
+    # self-hosted host) can't scrape a thing. Self-hosting often runs without a
+    # key — then the host is enough. MCP mode yields only markdown and is
+    # served later by the SysOp (see browser.dial), not here.
+    fc_sdk = fc_active and not cfg.get("use_mcp") and (api_key or base)
+    fc_mcp = fc_active and bool(cfg.get("use_mcp"))
+    if fc_sdk:
         html, md, raw, fc_error = firecrawl_scrape(url, api_key, base)
         # Book the outcome for the circuit breaker: an empty response without
         # an error is a malfunction too, otherwise it would never trip.
@@ -1359,7 +1387,7 @@ def fetch_page(url, firecrawl_cfg=None, render_images=True, img_width=60,
         source_html = raw or html
         if source_html:
             try:
-                page = build_page(source_html, url, render_images, img_width, img_mode, template)
+                page = build_page(source_html, url, render_images, img_width, img_mode, template, js_rendered=True)
                 # JS apps (Instagram & Co.): the HTML parses thin even though
                 # Firecrawl delivers usable markdown — then prefer that.
                 if not (page.low_text and md):
@@ -1381,17 +1409,19 @@ def fetch_page(url, firecrawl_cfg=None, render_images=True, img_width=60,
 
     # Between Firecrawl and bare HTTP fetch: a real Chromium that
     # executes the page JS. If Playwright isn't installed, it's a
-    # no-op and we continue with requests as before. With ACTIVE Firecrawl,
-    # Playwright stays completely out: Firecrawl is then the chosen
-    # JS renderer, and a second Chromium behind its back would silently
-    # corrupt results on every Firecrawl failure — the user
-    # would see a Playwright page and think it's Firecrawl's work.
+    # no-op and we continue with requests as before. Playwright steps in
+    # whenever Firecrawl will NOT render this page itself — Firecrawl off, or
+    # on but with no way to scrape (no key/host) and not in MCP mode. When
+    # Firecrawl DOES render (the SDK scrape above, or MCP via the SysOp),
+    # Playwright stays out: a second Chromium behind its back would silently
+    # swap results on every Firecrawl failure, and the user would see a
+    # Playwright page thinking it was Firecrawl's work.
     from . import jsrender
-    if not fc_active and jsrender.available():
+    if not fc_sdk and not fc_mcp and jsrender.available():
         html, final_url = jsrender.render(url)
         if html:
             try:
-                page = build_page(html, final_url or url, render_images, img_width, img_mode, template)
+                page = build_page(html, final_url or url, render_images, img_width, img_mode, template, js_rendered=True)
                 return page, None
             except Exception:
                 pass  # unparseable — the HTTP path below is still there
@@ -1407,7 +1437,7 @@ def fetch_page(url, firecrawl_cfg=None, render_images=True, img_width=60,
         # older pages. Better to determine encoding from content.
         if "charset" not in resp.headers.get("Content-Type", "").lower():
             resp.encoding = resp.apparent_encoding
-        page = build_page(resp.text, resp.url, render_images, img_width, img_mode, template)
+        page = build_page(resp.text, resp.url, render_images, img_width, img_mode, template, js_rendered=False)
         # Meta-refresh (popular on old pages) treat like a redirect.
         if page.refresh_url and page.refresh_url != resp.url and hop < 2:
             current = page.refresh_url
