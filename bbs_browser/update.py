@@ -157,6 +157,74 @@ def _emit(term, output):
         term.type_out("  " + ln, delay=0.001)
 
 
+def _install_detached_windows(term, pkg):
+    """Hands the pip install to a detached console window.
+
+    On Windows the running 'bbs.exe' launcher is locked by the OS, so an
+    in-process 'pip install --upgrade' uninstalls the old distribution and
+    then fails to write the new one — leaving no importable bbs_browser at
+    all. The helper script therefore waits until this process (and the
+    launcher that started it) is gone before it lets pip touch anything.
+    Returns True if the helper could be started."""
+    pids = [os.getpid()]
+    try:
+        parent = os.getppid()
+        if parent and parent not in pids:
+            pids.append(parent)
+    except Exception:  # pragma: no cover - not every platform has getppid
+        pass
+
+    lines = [
+        "@echo off",
+        "title BBS Browser Update",
+        "echo Warte, bis BBS Browser geschlossen ist / waiting for BBS Browser to close ...",
+        ":wait",
+    ]
+    for pid in pids:
+        lines += [
+            'tasklist /FI "PID eq %d" 2>nul | find "%d" >nul' % (pid, pid),
+            "if not errorlevel 1 (",
+            "  ping -n 2 127.0.0.1 >nul",
+            "  goto wait",
+            ")",
+        ]
+    lines += [
+        # A moment of grace: the launcher releases its handles only after exit.
+        "ping -n 3 127.0.0.1 >nul",
+        'echo Installiere / installing ...',
+        '"%s" -m pip install --upgrade "%s"' % (sys.executable, pkg),
+        "if errorlevel 1 goto failed",
+        '"%s" -m pip install --upgrade anthropic openai' % sys.executable,
+        '"%s" -m playwright install chromium' % sys.executable,
+        "echo.",
+        "echo OK - jetzt 'bbs' neu starten / start 'bbs' again.",
+        "pause",
+        "exit /b 0",
+        ":failed",
+        "echo.",
+        "echo FEHLER / ERROR - Installation fehlgeschlagen.",
+        "pause",
+        "exit /b 1",
+    ]
+
+    try:
+        script = os.path.join(tempfile.mkdtemp(prefix="bbs-update-"), "finish-update.cmd")
+        with open(script, "w", encoding="ascii", errors="replace") as f:
+            f.write("\r\n".join(lines) + "\r\n")
+        # DETACHED from our console, but with its own window so the user sees
+        # the progress after hanging up.
+        subprocess.Popen(
+            ["cmd", "/c", script],
+            creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+            | getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0),
+            close_fds=True,
+        )
+        return True
+    except Exception as exc:
+        _emit(term, str(exc))
+        return False
+
+
 def _install(term, pkg):
     """Installs the downloaded package — pipx preferred, otherwise pip."""
     if _have("pipx"):
@@ -169,6 +237,11 @@ def _install(term, pkg):
             _emit(term, inj_out)
             _install_chromium()
         return ok
+
+    if os.name == "nt":
+        # Windows locks the running launcher — see _install_detached_windows.
+        term.type_out(t("update.installing_pip"), delay=0.003)
+        return "detached" if _install_detached_windows(term, pkg) else False
 
     term.type_out(t("update.installing_pip"), delay=0.003)
     ok, out = _run([sys.executable, "-m", "pip", "install", "--upgrade", pkg])
@@ -248,8 +321,15 @@ def run_update(term):
         term.rule()
         return
 
-    if not _install(term, path):
+    result = _install(term, path)
+    if not result:
         term.error(t("update.install_failed"))
+        term.rule()
+        return
+
+    if result == "detached":
+        # Nothing is installed yet: the helper waits for us to hang up.
+        term.type_out(t("update.pending_windows", version=tag), delay=0.003)
         term.rule()
         return
 

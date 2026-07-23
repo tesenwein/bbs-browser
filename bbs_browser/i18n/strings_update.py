@@ -54,6 +54,17 @@ STRINGS = {
         "de": "OK — Version {version} installiert.",
         "en": "OK — version {version} installed.",
     },
+    # Windows: die Installation laeuft erst nach dem Beenden (gesperrte bbs.exe).
+    "update.pending_windows": {
+        "de": (
+            "Version {version} ist bereit — bitte jetzt mit 'q' auflegen. "
+            "Die Installation laeuft dann im neuen Fenster automatisch weiter."
+        ),
+        "en": (
+            "Version {version} is ready — please hang up now with 'q'. "
+            "The install then continues automatically in the new window."
+        ),
+    },
     "update.restart_hint": {
         "de": "Bitte 'bbs' neu starten, damit die neue Version laeuft.",
         "en": "Please restart 'bbs' for the new version to take effect.",
