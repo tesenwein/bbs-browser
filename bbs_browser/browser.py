@@ -213,6 +213,23 @@ class Browser:
         fresh.forms = page.forms
         return fresh
 
+    def _template_line(self, page):
+        """One line in the page's info box saying what the house template did
+        here. Without it nobody can tell whether a domain HAS a template, let
+        alone whether it gripped — the message on dialing scrolls away behind
+        the page. Empty only where a template can never exist (gopher,
+        gemini, internal screens)."""
+        from . import styletpl
+
+        domain = styletpl.domain_of(getattr(page, "url", ""))
+        if not domain or not styletpl.eligible(page):
+            return ""
+        if not styletpl.exists(domain):
+            return t("browser.template_none", domain=domain)
+        if getattr(page, "template_used", False):
+            return t("browser.template_used", domain=domain)
+        return t("browser.template_idle", domain=domain)
+
     def show_page(self):
         term = self.term
         p = self.page
@@ -241,6 +258,9 @@ class Browser:
         # Offer the page's search forms — otherwise nobody would find them.
         if getattr(p, "forms", []):
             rows.append(t("browser.forms_available", count=len(p.forms)))
+        line = self._template_line(p)
+        if line:
+            rows.append(line)
         term.box(rows)
         pending = paginate(term, layout_page(p, term.color))
         term.rule()
