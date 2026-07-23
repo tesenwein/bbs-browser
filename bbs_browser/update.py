@@ -157,14 +157,15 @@ def _emit(term, output):
         term.type_out("  " + ln, delay=0.001)
 
 
-def _install_detached_windows(term, pkg):
-    """Hands the pip install to a detached console window.
+def _install_detached_windows(term, pkg, use_pipx):
+    """Hands the install to a detached console window.
 
     On Windows the running 'bbs.exe' launcher is locked by the OS, so an
     in-process 'pip install --upgrade' uninstalls the old distribution and
     then fails to write the new one — leaving no importable bbs_browser at
-    all. The helper script therefore waits until this process (and the
-    launcher that started it) is gone before it lets pip touch anything.
+    all (pipx --force has the same problem, it recreates the same venv).
+    The helper script therefore waits until this process (and the launcher
+    that started it) is gone before it lets the installer touch anything.
     Returns True if the helper could be started."""
     pids = [os.getpid()]
     try:
@@ -188,14 +189,44 @@ def _install_detached_windows(term, pkg):
             "  goto wait",
             ")",
         ]
+    if use_pipx:
+        install = 'pipx install --force "%s"' % pkg
+        extras = [
+            "pipx inject bbs-browser anthropic openai pyfiglet rich",
+        ]
+        # We are running out of that very venv, so sys.executable is the right
+        # interpreter even before pipx has rebuilt it.
+        chromium = _pipx_python() or sys.executable
+    else:
+        # --force-reinstall: a previous half-finished update may have left the
+        # metadata behind, and pip would then consider the version installed.
+        install = '"%s" -m pip install --upgrade --force-reinstall "%s"' % (
+            sys.executable, pkg)
+        extras = ['"%s" -m pip install --upgrade anthropic openai' % sys.executable]
+        chromium = sys.executable
+
     lines += [
         # A moment of grace: the launcher releases its handles only after exit.
         "ping -n 3 127.0.0.1 >nul",
-        'echo Installiere / installing ...',
-        '"%s" -m pip install --upgrade "%s"' % (sys.executable, pkg),
-        "if errorlevel 1 goto failed",
-        '"%s" -m pip install --upgrade anthropic openai' % sys.executable,
-        '"%s" -m playwright install chromium' % sys.executable,
+        "echo Installiere / installing ...",
+        # Up to three attempts: a virus scanner or an Explorer window can hold
+        # a handle for a moment, and a failed run must not leave a half
+        # uninstalled package behind.
+        "set BBS_TRY=0",
+        ":install",
+        "set /a BBS_TRY+=1",
+        install,
+        "if not errorlevel 1 goto ok",
+        "if %BBS_TRY% GEQ 3 goto failed",
+        "echo Erneuter Versuch / retrying ...",
+        "ping -n 4 127.0.0.1 >nul",
+        "goto install",
+        ":ok",
+    ]
+    lines += extras
+    if chromium:
+        lines.append('"%s" -m playwright install chromium' % chromium)
+    lines += [
         "echo.",
         "echo OK - jetzt 'bbs' neu starten / start 'bbs' again.",
         "pause",
@@ -227,7 +258,17 @@ def _install_detached_windows(term, pkg):
 
 def _install(term, pkg):
     """Installs the downloaded package — pipx preferred, otherwise pip."""
-    if _have("pipx"):
+    pipx = _have("pipx")
+
+    if os.name == "nt":
+        # Windows locks the running launcher — see _install_detached_windows.
+        term.type_out(
+            t("update.installing_pipx" if pipx else "update.installing_pip"),
+            delay=0.003,
+        )
+        return "detached" if _install_detached_windows(term, pkg, pipx) else False
+
+    if pipx:
         term.type_out(t("update.installing_pipx"), delay=0.003)
         ok, out = _run(["pipx", "install", "--force", pkg])
         _emit(term, out)
@@ -237,11 +278,6 @@ def _install(term, pkg):
             _emit(term, inj_out)
             _install_chromium()
         return ok
-
-    if os.name == "nt":
-        # Windows locks the running launcher — see _install_detached_windows.
-        term.type_out(t("update.installing_pip"), delay=0.003)
-        return "detached" if _install_detached_windows(term, pkg) else False
 
     term.type_out(t("update.installing_pip"), delay=0.003)
     ok, out = _run([sys.executable, "-m", "pip", "install", "--upgrade", pkg])
