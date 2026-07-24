@@ -1,0 +1,31 @@
+{
+  "slug": "module-split-page-sysop-configmenu",
+  "name": "module-split-page-sysop-configmenu",
+  "description": "",
+  "files": [
+    "bbs_browser/page.py",
+    "bbs_browser/fetch.py",
+    "bbs_browser/firecrawl.py",
+    "bbs_browser/sysop.py",
+    "bbs_browser/sysop_config.py",
+    "bbs_browser/sysop_tools.py",
+    "bbs_browser/sysop_templater.py",
+    "bbs_browser/sysop_chat.py",
+    "bbs_browser/configmenu/__init__.py"
+  ],
+  "guidelines": [],
+  "anti_patterns": [],
+  "decisions": [],
+  "tags": [
+    "architecture",
+    "module-split",
+    "sysop",
+    "page",
+    "fetch",
+    "firecrawl",
+    "configmenu"
+  ],
+  "dependsOn": [],
+  "updatedAt": "2026-07-24T12:39:54.473Z",
+  "createdAt": "2026-07-24T12:39:54.473Z"
+}
