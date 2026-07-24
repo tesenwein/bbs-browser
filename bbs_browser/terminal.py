@@ -330,6 +330,10 @@ class Terminal:
         finally:
             sys.stdout.write(RESET)
 
+    def confirm(self, label):
+        """Yes/no prompt; only an explicit yes (j/ja/y/yes) counts."""
+        return (self.prompt(label) or "").strip().lower() in ("j", "ja", "y", "yes")
+
     def on_interrupt(self):
         """Ctrl+C at the prompt: once cancels the input, twice in a row
         hangs up and exits the program."""

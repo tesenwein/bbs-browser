@@ -364,10 +364,7 @@ class UserBase:
         if not opener:
             return   # AI returns nothing: then nobody knocks either
         self.term.beep()
-        answer = self.term.prompt(
-            t("users.knock", handle=persona.handle, node=entry["node"])
-        )
-        if answer.strip().lower() in ("j", "ja", "y", "yes"):
+        if self.term.confirm(t("users.knock", handle=persona.handle, node=entry["node"])):
             self.chat_with(entry, opener=opener)
         else:
             self.term.type_out(

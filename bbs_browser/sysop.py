@@ -720,8 +720,7 @@ class SysOp:
                 # The caller sees the command in plain text and approves it —
                 # without an explicit yes, nothing happens.
                 sysop.term.type_out(t("sysop.shell_ask", command=befehl), delay=0.002)
-                answer = (sysop.term.prompt(t("sysop.shell_confirm_prompt")) or "").strip().lower()
-                if answer not in ("j", "ja", "y", "yes"):
+                if not sysop.term.confirm(t("sysop.shell_confirm_prompt")):
                     return t("sysop.shell_denied")
             sysop.term.type_out(t("sysop.shell_running", command=befehl), delay=0.001)
             try:
