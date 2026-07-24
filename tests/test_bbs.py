@@ -1839,4 +1839,43 @@ assert all(len(ln) <= _sw() for ln in _clines)
 assert _styled.template_used and not _plain.template_used
 _db.template_clear()
 
+# Packaging-Vollstaendigkeit: jedes Unterpaket im Baum muss auch installiert
+# werden. Das Aufteilen von configmenu in ein Paket brach genau hier — die
+# feste Paketliste in pyproject.toml zog das neue Unterpaket nicht mit, und
+# der installierte 'bbs' stuerzte mit ModuleNotFoundError ab. Aus dem Quell-
+# baum importiert alles, deshalb faellt so ein Fehler nur beim Installieren
+# auf: dieser Test vergleicht die Deklaration mit dem tatsaechlichen Baum.
+try:
+    import tomllib  # Python 3.11+
+except ModuleNotFoundError:  # 3.9/3.10: optional Fallback, sonst Check ueberspringen
+    try:
+        import tomli as tomllib
+    except ModuleNotFoundError:
+        tomllib = None
+
+from setuptools import find_packages
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_on_disk = set(find_packages(where=_ROOT, include=["bbs_browser*"]))
+if tomllib is None:
+    _cfg = None
+else:
+    with open(os.path.join(_ROOT, "pyproject.toml"), "rb") as _pf:
+        _cfg = tomllib.load(_pf)
+if _cfg is not None:
+    _st = _cfg.get("tool", {}).get("setuptools", {})
+    if "packages" in _st and not isinstance(_st["packages"], dict):
+        # Feste Liste: muss jedes vorhandene Paket enthalten.
+        _declared = set(_st["packages"])
+    else:
+        # Auto-Discovery (packages.find): dieselbe Regel wie der Build anwenden.
+        _find = _st.get("packages", {}).get("find", {}) if isinstance(_st.get("packages"), dict) else {}
+        _declared = set(find_packages(
+            where=_ROOT,
+            include=_find.get("include", ["*"]),
+            exclude=_find.get("exclude", []),
+        ))
+    _missing_pkgs = _on_disk - _declared
+    assert not _missing_pkgs, f"pyproject.toml installiert diese Pakete nicht: {sorted(_missing_pkgs)}"
+
 print("OK — alle Assertions bestanden")
