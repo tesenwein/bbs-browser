@@ -7,9 +7,9 @@ from . import headers, lightbar
 from .colors import pick_color
 from .constants import DIM, RESET, USER_AGENT, screen_width
 from .i18n import t
+from .firecrawl import firecrawl_muted, firecrawl_search
 from .page import (
-    ddg_search, fetch_page, firecrawl_muted, firecrawl_search,
-    normalize_base_url, normalize_url,
+    ddg_search, fetch_page, normalize_base_url, normalize_url,
     page_from_markdown, page_from_search_results, page_text,
 )
 from .render import layout_page, paginate
