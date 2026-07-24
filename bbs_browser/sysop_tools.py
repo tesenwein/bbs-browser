@@ -135,7 +135,7 @@ def build_tool_registry(sysop):
         if text:
             return text
         keys = ", ".join(entry[0] for entry in manual.ALL)
-        return f"Keine Funktion '{name}' im Handbuch. Bekannt sind: {keys}"  # internal error for the AI
+        return t("sysop_tools.function_not_found", name=name, keys=keys)  # internal error for the AI
 
     def chat_umbenennen(titel):
         from .sysop import CHAT_TITLE_MAX
@@ -175,7 +175,7 @@ def build_tool_registry(sysop):
     def firecrawl_scrape(url):
         fc_cfg = browser.firecrawl if browser else {}
         md = sysop.scrape_markdown(url, fc_cfg)
-        return md[:MAX_PAGE_CHARS] if md else "Scrape fehlgeschlagen oder Firecrawl nicht konfiguriert."
+        return md[:MAX_PAGE_CHARS] if md else t("sysop_tools.scrape_failed")
 
     # -- App control: navigation, bookmarks, non-critical settings --
 
@@ -190,14 +190,14 @@ def build_tool_registry(sysop):
     def verlauf_anzeigen():
         from .nostalgia import recent_entries
         if not browser or not browser.history:
-            return "Der Verlauf ist leer."
+            return t("sysop_tools.history_empty")
         return "\n".join(
             f"[{i}] {e.get('title') or ''} -> {e.get('url')}"
             for i, e in enumerate(recent_entries(browser.history, 20), 1))
 
     def lesezeichen_auflisten():
         if not browser or not browser.bookmarks:
-            return "Keine Lesezeichen vorhanden."
+            return t("sysop_tools.no_bookmarks")
         return "\n".join(
             f"[{i}] {b.get('title') or ''} -> {b.get('url')}"
             for i, b in enumerate(browser.bookmarks, 1))
@@ -206,7 +206,7 @@ def build_tool_registry(sysop):
         if not browser or not browser.page:
             return t("sysop.no_page_loaded")
         browser.add_bookmark()
-        return f"Lesezeichen gesetzt: {browser.page.title} ({browser.page.url})"
+        return t("sysop_tools.bookmark_set", title=browser.page.title, url=browser.page.url)
 
     def lesezeichen_anwaehlen(nummer):
         if not browser:
@@ -233,7 +233,7 @@ def build_tool_registry(sysop):
 
             mode = str(wert).strip().lower()
             if mode not in ("green", "amber", "auto", "multi"):
-                return "Erlaubt: green, amber, auto, multi."
+                return t("sysop_tools.color_allowed")
             browser.color_auto = mode == "auto"
             colors.set_multi(mode == "multi")
             if mode == "multi":
@@ -246,7 +246,7 @@ def build_tool_registry(sysop):
         def sprache(wert):
             lang = str(wert).strip().lower()
             if lang not in i18n.LANGUAGES:
-                return "Erlaubt: " + ", ".join(i18n.LANGUAGES) + "."
+                return t("sysop_tools.lang_allowed", list=", ".join(i18n.LANGUAGES))
             i18n.set_lang(set_ui("lang", lang))
             return None
 
@@ -261,7 +261,7 @@ def build_tool_registry(sysop):
             mode = {"aus": "off", "an": "blocks", "bloecke": "blocks",
                     "halbbloecke": "blocks"}.get(mode, mode)
             if mode not in IMG_SETTINGS:
-                return "Erlaubt: blocks (Halbbloecke), ascii, aus."
+                return t("sysop_tools.images_allowed")
             browser.images = set_ui("images", mode)
             return None
 
@@ -269,7 +269,7 @@ def build_tool_registry(sysop):
             mode = str(wert).strip().lower()
             mode = {"aus": "off", "an": "logo"}.get(mode, mode)
             if mode not in HEADER_MODES:
-                return "Erlaubt: logo, banner, aus."
+                return t("sysop_tools.header_allowed")
             browser.header = set_ui("header", mode)
             return None
 
@@ -281,22 +281,21 @@ def build_tool_registry(sysop):
             return setter
 
         return {
-            "bilder": ("blocks/ascii/aus — Bilder auf Seiten (blocks = Halbbloecke)", bilder),
-            "bildbreite": ("Zahl — Breite gerenderter Bilder in Zeichen (min. 10)",
+            "bilder": (t("sysop_tools.setting_bilder"), bilder),
+            "bildbreite": (t("sysop_tools.setting_bildbreite"),
                            lambda w: setattr(browser, "img_width", set_ui("img_width", max(10, int(w)))) and None),
-            "tipp_effekt": ("an/aus — Text zeichenweise austippen",
+            "tipp_effekt": (t("sysop_tools.setting_tipp_effekt"),
                             _bool_setter("fast", lambda v: _set_fast(not v))),
-            "farbe": ("green/amber/auto/multi — Phosphorfarbe des Terminals"
-                      " (multi = Rollenfarben im ANSI-BBS-Stil)", farbe),
-            "baud": ("Zahl — simulierte Baudrate, 0 = aus",
+            "farbe": (t("sysop_tools.setting_farbe"), farbe),
+            "baud": (t("sysop_tools.setting_baud"),
                      lambda w: _set_baud(set_ui("baud", max(0, int(w))))),
-            "sound": ("an/aus — Modemgeraeusche und Signaltoene",
+            "sound": (t("sysop_tools.setting_sound"),
                       _bool_setter("sound", lambda v: _set_sound(v))),
-            "bildschirmschoner": ("Sekunden — Leerlauf bis zum Schoner, 0 = aus",
+            "bildschirmschoner": (t("sysop_tools.setting_bildschirmschoner"),
                                   lambda w: setattr(browser, "saver_idle", set_ui("saver_idle", max(0, int(w)))) and None),
-            "sprache": ("de/en — Sprache der Oberflaeche", sprache),
-            "breite": ("Zahl — Terminalbreite, 0 = Vollbild, sonst min. 80", breite),
-            "seitenkopf": ("logo/banner/aus — Kopfzeile ueber Seiten", seitenkopf),
+            "sprache": (t("sysop_tools.setting_sprache"), sprache),
+            "breite": (t("sysop_tools.setting_breite"), breite),
+            "seitenkopf": (t("sysop_tools.setting_seitenkopf"), seitenkopf),
         }
 
     def _set_fast(value):
@@ -323,67 +322,66 @@ def build_tool_registry(sysop):
         settings = _settings_map()
         entry = settings.get(str(name).strip().lower())
         if not entry:
-            return ("Unbekannte Einstellung. Verfuegbar: "
-                    + ", ".join(sorted(settings)))
+            return t("sysop_tools.setting_unknown", list=", ".join(sorted(settings)))
         desc, setter = entry
         try:
             problem = setter(wert)
         except (TypeError, ValueError):
-            return f"Ungueltiger Wert fuer '{name}' ({desc})."
+            return t("sysop_tools.setting_invalid_value", name=name, desc=desc)
         if problem:
             return problem
-        return f"Einstellung '{name}' auf '{wert}' gesetzt."
+        return t("sysop_tools.setting_changed", name=name, value=wert)
 
     tools = [
         {"name": "seite_lesen", "func": seite_lesen, "parameters": _no_params(),
-         "description": "Liest die aktuell im Browser geladene Seite (Titel, URL und kompletter Text)."},
+         "description": t("sysop_tools.seite_lesen_desc")},
         {"name": "links_auflisten", "func": links_auflisten, "parameters": _no_params(),
-         "description": "Listet alle nummerierten Links der aktuell geladenen Seite mit Nummer, Beschriftung und Ziel-URL."},
+         "description": t("sysop_tools.links_auflisten_desc")},
         {"name": "link_folgen", "func": link_folgen,
-         "parameters": _one("nummer", "integer", "Die Link-Nummer aus links_auflisten (1-basiert)."),
-         "description": "Folgt dem Link mit der angegebenen Nummer auf der aktuellen Seite und laedt die Zielseite in den Browser."},
+         "parameters": _one("nummer", "integer", t("sysop_tools.link_folgen_param_nummer")),
+         "description": t("sysop_tools.link_folgen_desc")},
         {"name": "seite_anwaehlen", "func": seite_anwaehlen,
-         "parameters": _one("url", "string", "Die anzuwaehlende Adresse."),
-         "description": "Waehlt eine URL an und laedt sie in den Browser des Anrufers."},
+         "parameters": _one("url", "string", t("sysop_tools.seite_anwaehlen_param_url")),
+         "description": t("sysop_tools.seite_anwaehlen_desc")},
         {"name": "suchen", "func": suchen,
-         "parameters": _one("begriff", "string", "Der Suchbegriff."),
-         "description": "Sucht via DuckDuckGo und laedt die Ergebnisseite in den Browser."},
+         "parameters": _one("begriff", "string", t("sysop_tools.suchen_param_begriff")),
+         "description": t("sysop_tools.suchen_desc")},
         {"name": "im_netz_lesen", "func": im_netz_lesen,
-         "parameters": _one("url", "string", "Die zu lesende Adresse."),
-         "description": "Laedt eine URL im Hintergrund und liefert Titel, Text und Links zurueck, OHNE den Bildschirm des Anrufers zu veraendern. Nutze das zum eigenstaendigen Surfen und Recherchieren; seite_anwaehlen nur, wenn der Anrufer die Seite selbst sehen soll."},
+         "parameters": _one("url", "string", t("sysop_tools.im_netz_lesen_param_url")),
+         "description": t("sysop_tools.im_netz_lesen_desc")},
         {"name": "im_netz_suchen", "func": im_netz_suchen,
-         "parameters": _one("begriff", "string", "Der Suchbegriff."),
-         "description": "Sucht via DuckDuckGo im Hintergrund und liefert die Treffer mit URLs zurueck, OHNE den Bildschirm des Anrufers zu veraendern. Ergebnisse danach bei Bedarf mit im_netz_lesen vertiefen."},
+         "parameters": _one("begriff", "string", t("sysop_tools.im_netz_suchen_param_begriff")),
+         "description": t("sysop_tools.im_netz_suchen_desc")},
         {"name": "funktionen_auflisten", "func": funktionen_auflisten, "parameters": _no_params(),
-         "description": "Listet alle Funktionen und Befehle des BBS-Browsers mit Befehl, Syntax, Kategorie und Kurzbeschreibung. Nutze das, wenn der Anrufer wissen will, was der Browser kann."},
+         "description": t("sysop_tools.funktionen_auflisten_desc")},
         {"name": "funktion_erklaeren", "func": funktion_erklaeren,
-         "parameters": _one("name", "string", "Befehl oder Stichwort, z.B. 'rss', 'l', 'chat', 'baud', 'firecrawl'."),
-         "description": "Erklaert eine einzelne Funktion des BBS-Browsers ausfuehrlich. Nutze das immer, wenn der Anrufer fragt, wie etwas funktioniert oder was ein Befehl macht — antworte nie aus dem Gedaechtnis."},
+         "parameters": _one("name", "string", t("sysop_tools.funktion_erklaeren_param_name")),
+         "description": t("sysop_tools.funktion_erklaeren_desc")},
         {"name": "chat_umbenennen", "func": chat_umbenennen,
-         "parameters": _one("titel", "string", "Kurzer Name fuer diesen Chat, max. 40 Zeichen. Leer laesst den Standardnamen zurueckkehren."),
-         "description": "Benennt den laufenden Chat um; der Name erscheint im Verlauf ('log'). Nutze das, wenn der Anrufer einen Namen wuenscht oder das Thema des Chats klar geworden ist."},
+         "parameters": _one("titel", "string", t("sysop_tools.chat_umbenennen_param_titel")),
+         "description": t("sysop_tools.chat_umbenennen_desc")},
         {"name": "firecrawl_scrape", "func": firecrawl_scrape,
-         "parameters": _one("url", "string", "Die zu scrapende Adresse."),
-         "description": "Scraped eine JS-lastige Seite ueber Firecrawl und liefert das Markdown. Nur nutzen, wenn die normale Anwahl zu wenig Inhalt liefert."},
+         "parameters": _one("url", "string", t("sysop_tools.firecrawl_scrape_param_url")),
+         "description": t("sysop_tools.firecrawl_scrape_desc")},
         {"name": "zurueck_blaettern", "func": zurueck_blaettern, "parameters": _no_params(),
-         "description": "Blaettert im Browser des Anrufers eine Seite zurueck (wie der Befehl 'b')."},
+         "description": t("sysop_tools.zurueck_blaettern_desc")},
         {"name": "verlauf_anzeigen", "func": verlauf_anzeigen, "parameters": _no_params(),
-         "description": "Listet die letzten 20 besuchten Seiten mit Nummer, Titel und URL."},
+         "description": t("sysop_tools.verlauf_anzeigen_desc")},
         {"name": "lesezeichen_auflisten", "func": lesezeichen_auflisten, "parameters": _no_params(),
-         "description": "Listet alle Lesezeichen des Anrufers mit Nummer, Titel und URL."},
+         "description": t("sysop_tools.lesezeichen_auflisten_desc")},
         {"name": "lesezeichen_setzen", "func": lesezeichen_setzen, "parameters": _no_params(),
-         "description": "Setzt ein Lesezeichen auf die aktuell geladene Seite."},
+         "description": t("sysop_tools.lesezeichen_setzen_desc")},
         {"name": "lesezeichen_anwaehlen", "func": lesezeichen_anwaehlen,
-         "parameters": _one("nummer", "integer", "Die Nummer aus lesezeichen_auflisten (1-basiert)."),
-         "description": "Waehlt ein Lesezeichen an und laedt es in den Browser des Anrufers."},
+         "parameters": _one("nummer", "integer", t("sysop_tools.lesezeichen_anwaehlen_param_nummer")),
+         "description": t("sysop_tools.lesezeichen_anwaehlen_desc")},
         {"name": "einstellungen_auflisten", "func": einstellungen_auflisten, "parameters": _no_params(),
-         "description": "Listet alle Einstellungen, die du fuer den Anrufer aendern darfst, mit erlaubten Werten. Immer zuerst aufrufen, bevor du eine Einstellung aenderst."},
+         "description": t("sysop_tools.einstellungen_auflisten_desc")},
         {"name": "einstellung_aendern", "func": einstellung_aendern,
          "parameters": {"type": "object", "properties": {
-             "name": {"type": "string", "description": "Name der Einstellung aus einstellungen_auflisten."},
-             "wert": {"type": "string", "description": "Der neue Wert, z.B. 'an', 'aus', 'green', '9600', 'de'."},
+             "name": {"type": "string", "description": t("sysop_tools.einstellung_aendern_param_name")},
+             "wert": {"type": "string", "description": t("sysop_tools.einstellung_aendern_param_wert")},
          }, "required": ["name", "wert"]},
-         "description": "Aendert eine unkritische Einstellung (Anzeige, Sound, Sprache, Baud usw.) fuer den Anrufer. API-Keys, Systemzugriff und MCP-Server kannst du NICHT aendern — dafuer den Anrufer ins Config-Menue ('c') schicken."},
+         "description": t("sysop_tools.einstellung_aendern_desc")},
     ]
     # Tools of the registered MCP servers: our own MCP client makes
     # them available to every provider, not just direct Anthropic.
@@ -398,15 +396,8 @@ def build_tool_registry(sysop):
         tools.append({
             "name": "system_befehl", "func": system_befehl,
             "parameters": _one("befehl", "string",
-                               "Der auszufuehrende Shell-Befehl, z.B. 'uname -a' oder 'ls ~'."),
-            "description": (
-                "Fuehrt einen Shell-Befehl auf dem Rechner des Anrufers aus und liefert "
-                "Exit-Code und Ausgabe zurueck. Nutze das nur, wenn der Anrufer wirklich "
-                "etwas am System wissen oder tun will. Sei sparsam und vorsichtig: keine "
-                "zerstoerenden Befehle (rm -rf, Formatieren, Herunterfahren) ohne "
-                "ausdruecklichen Auftrag, und keine interaktiven Programme, die auf "
-                "Eingaben warten."
-            ),
+                               t("sysop_tools.system_befehl_param_befehl")),
+            "description": t("sysop_tools.system_befehl_desc"),
         })
     return tools
 
@@ -426,40 +417,24 @@ def build_templater_registry(box):
     return [
         {
             "name": "satzprobe",
-            "description": (
-                "Satzprobe zu einem CSS-Selektor: Trefferzahl auf JEDER "
-                "Fahne, dazu Tag, Zeichenzahl und Textprobe auf Fahne 1. "
-                "Damit erkennst du, ob ein Selektor eine Ueberschrift "
-                "greift oder einen ganzen Inhaltsblock. Ein Selektor, der "
-                "nur auf Fahne 1 trifft, taugt nicht fuer die Domain."
-            ),
-            "parameters": _sel(True, "Der zu pruefende CSS-Selektor."),
+            "description": t("sysop_tools.satzprobe_desc"),
+            "parameters": _sel(True, t("sysop_tools.satzprobe_param_selektor")),
             "func": lambda selektor: box.probe(selektor),
         },
         {
             "name": "bauplan",
-            "description": (
-                "Bauplan eines Teilbaums: Tags mit Klassen/IDs und die "
-                "Zeichenzahl darunter, ohne den Text. Ohne Selektor die "
-                "ganze Fahne 1. Nutze das, um dich in einen Bereich "
-                "hineinzugraben."
-            ),
-            "parameters": _sel(False, "Optionaler CSS-Selektor der Wurzel."),
+            "description": t("sysop_tools.bauplan_desc"),
+            "parameters": _sel(False, t("sysop_tools.bauplan_param_selektor")),
             "func": lambda selektor="": box.outline(selektor),
         },
         {
             "name": "andruck",
-            "description": (
-                "Andruck deines Entwurfs auf ALLEN Fahnen: meldet je Fahne "
-                "die Zeichenbilanz gegen den Handsatz, jede abgelehnte "
-                "Regel und den Blocksatz von Fahne 1. Rufe das auf, BEVOR "
-                "du fertig bist, und korrigiere, was danebengreift."
-            ),
+            "description": t("sysop_tools.andruck_desc"),
             "parameters": {
                 "type": "object",
                 "properties": {"vorlage": {
                     "type": "string",
-                    "description": "Der Entwurf als JSON-Objekt (content/drop/rules/note).",
+                    "description": t("sysop_tools.andruck_param_vorlage"),
                 }},
                 "required": ["vorlage"],
             },
