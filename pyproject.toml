@@ -40,5 +40,9 @@ ai = ["anthropic>=0.40", "openai>=1.40", "pyfiglet>=1.0"]
 [project.scripts]
 bbs = "bbs_browser.cli:main"
 
-[tool.setuptools]
-packages = ["bbs_browser", "bbs_browser.i18n"]
+# Alle Pakete unter bbs_browser automatisch einsammeln. Das feste Auflisten
+# hat beim Aufteilen von configmenu in ein Unterpaket dazu gefuehrt, dass es
+# beim Installieren fehlte (ModuleNotFoundError: bbs_browser.configmenu) —
+# die Auto-Discovery nimmt kuenftige Unterpakete von selbst mit.
+[tool.setuptools.packages.find]
+include = ["bbs_browser*"]
