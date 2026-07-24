@@ -431,7 +431,7 @@ assert tc_page.theme_color == "#e3000f"
 
 # Firecrawl check (offline cases only: no key, no host -> no network)
 import os
-from bbs_browser.page import firecrawl_check
+from bbs_browser.firecrawl import firecrawl_check
 os.environ.pop("FIRECRAWL_API_KEY", None)
 
 res = firecrawl_check({}, "")
@@ -655,6 +655,7 @@ from bbs_browser.page import fetch_page  # noqa: F811
 # supply raw HTML with a header plus cleaned HTML without a header; the logo
 # only appears in the raw one, which proves the raw HTML was used.
 import bbs_browser.page as _pagemod
+import bbs_browser.firecrawl as _fcmod
 _fc_raw = (
     '<html><head><title>FC-Seite</title></head><body>'
     '<header><a href="https://fc.de/"><img src="/logo.png" alt="fc"></a></header>'
@@ -665,14 +666,14 @@ _fc_raw = (
 # The cleaned HTML deliberately carries ONLY a stub paragraph, the raw one the
 # real paragraphs. So the page content is the proof of which HTML was built.
 _fc_clean = '<main><h1>Echte Schlagzeile</h1><p>Nur der bereinigte Rumpf.</p></main>'
-_fc_orig = _pagemod.firecrawl_scrape
-_pagemod.firecrawl_scrape = lambda url, api_key, base: (_fc_clean, "", _fc_raw, None)
+_fc_orig = _fcmod.firecrawl_scrape
+_fcmod.firecrawl_scrape = lambda url, api_key, base: (_fc_clean, "", _fc_raw, None)
 try:
     _fc_page, _fc_err = _pagemod.fetch_page(
         "https://fc.de/artikel", {"enabled": True, "api_key": "fc-test"}, render_images=False,
     )
 finally:
-    _pagemod.firecrawl_scrape = _fc_orig
+    _fcmod.firecrawl_scrape = _fc_orig
 _fc_text = " ".join(b.get("content", "") for b in _fc_page.blocks)
 assert _fc_err is None
 assert _fc_page.logo_urls and any("logo.png" in u for u in _fc_page.logo_urls), \
@@ -709,13 +710,13 @@ _jsmod.render = lambda url, timeout=20000: (
 )[1]
 _rq_orig = _pagemod.requests.get
 _pagemod.requests.get = lambda *a, **kw: _HttpResp()
-_pagemod.firecrawl_scrape = lambda url, api_key, base: ("", "", "", "Credits aufgebraucht")
+_fcmod.firecrawl_scrape = lambda url, api_key, base: ("", "", "", "Credits aufgebraucht")
 try:
     _fcp, _fce = _pagemod.fetch_page(
         "https://fc.de/artikel", {"enabled": True, "api_key": "fc-test"}, render_images=False,
     )
 finally:
-    _pagemod.firecrawl_scrape = _fc_orig
+    _fcmod.firecrawl_scrape = _fc_orig
     _pagemod.requests.get = _rq_orig
     _jsmod.available, _jsmod.render = _av_orig, _rd_orig
 assert _fce is None
@@ -726,31 +727,31 @@ assert "HTTP-Absatz" in " ".join(b.get("content", "") for b in _fcp.blocks), \
 
 # Firecrawl kaputt: nach genug Fehlschlaegen wird es fuer die Sitzung ignoriert —
 # dann darf Playwright wieder ran, und der SDK-Aufruf faellt ganz weg.
-_pagemod.firecrawl_reset()
+_fcmod.firecrawl_reset()
 _fc_calls = []
-_pagemod.firecrawl_scrape = lambda url, api_key, base: (
+_fcmod.firecrawl_scrape = lambda url, api_key, base: (
     _fc_calls.append(url), ("", "", "", "Host nicht erreichbar"))[1]
 _jsmod.available, _jsmod.render = lambda: True, lambda url: (
     '<html><body><main><p>Playwright-Seite</p></main></body></html>', url)
 _pagemod.requests.get = lambda *a, **kw: _HttpResp()
 try:
     _fccfg = {"enabled": True, "api_key": "fc-test"}
-    for _ in range(_pagemod.FIRECRAWL_MAX_FAILURES):
+    for _ in range(_fcmod.FIRECRAWL_MAX_FAILURES):
         _pagemod.fetch_page("https://fc.de/a", _fccfg, render_images=False)
-    assert _pagemod.firecrawl_muted(), "nach wiederholten Fehlern muss Firecrawl stummgeschaltet sein"
+    assert _fcmod.firecrawl_muted(), "nach wiederholten Fehlern muss Firecrawl stummgeschaltet sein"
     _n_before = len(_fc_calls)
     _mp, _ = _pagemod.fetch_page("https://fc.de/b", _fccfg, render_images=False)
     assert len(_fc_calls) == _n_before, "stummgeschaltet: Firecrawl darf nicht mehr aufgerufen werden"
     assert not _mp.firecrawl_error, "stummgeschaltet: kein weiterer Firecrawl-Fehler mehr"
     assert "Playwright-Seite" in " ".join(b.get("content", "") for b in _mp.blocks), \
         "stummgeschaltet: der normale JS-Pfad muss uebernehmen"
-    _pagemod.firecrawl_reset()
-    assert not _pagemod.firecrawl_muted(), "firecrawl_reset muss den Schalter loesen"
+    _fcmod.firecrawl_reset()
+    assert not _fcmod.firecrawl_muted(), "firecrawl_reset muss den Schalter loesen"
 finally:
-    _pagemod.firecrawl_scrape = _fc_orig
+    _fcmod.firecrawl_scrape = _fc_orig
     _pagemod.requests.get = _rq_orig
     _jsmod.available, _jsmod.render = _av_orig, _rd_orig
-    _pagemod.firecrawl_reset()
+    _fcmod.firecrawl_reset()
 
 # Firecrawl OFF: Playwright is still the JS path.
 _jsmod.available = lambda: True
@@ -770,7 +771,7 @@ assert _jse is None and "JS-Absatz" in " ".join(b.get("content", "") for b in _j
 # nichts renderte — dann blieb die Seite ganz ohne JS-Renderer. Playwright
 # muss hier einspringen.
 _fc_calls2 = []
-_pagemod.firecrawl_scrape = lambda url, api_key, base: (
+_fcmod.firecrawl_scrape = lambda url, api_key, base: (
     _fc_calls2.append(url), ("", "", "", None))[1]
 _jsmod.available = lambda: True
 _jsmod.render = lambda url, timeout=20000: (
@@ -781,7 +782,7 @@ try:
     _nkp, _nke = _pagemod.fetch_page(
         "https://js.de/nokey", {"enabled": True}, render_images=False)
 finally:
-    _pagemod.firecrawl_scrape = _fc_orig
+    _fcmod.firecrawl_scrape = _fc_orig
     _jsmod.available, _jsmod.render = _av_orig, _rd_orig
 assert not _fc_calls2, "Firecrawl ohne Key darf gar nicht erst scrapen"
 assert _nke is None and "JS-Absatz" in " ".join(b.get("content", "") for b in _nkp.blocks), \
@@ -809,18 +810,19 @@ _fc_fake_mod.Firecrawl = _FakeFirecrawl
 _fc_mod_orig = _sys.modules.get("firecrawl")
 _sys.modules["firecrawl"] = _fc_fake_mod
 try:
-    _, _md, _raw, _err = _pagemod.firecrawl_scrape("https://x.de/", "fc-k", "")
+    _, _md, _raw, _err = _fcmod.firecrawl_scrape("https://x.de/", "fc-k", "")
 finally:
     if _fc_mod_orig is not None:
         _sys.modules["firecrawl"] = _fc_mod_orig
     else:
         _sys.modules.pop("firecrawl", None)
 assert _err is None and _md == "ok" and _raw
-assert _fc_captured["wait_for"] == _pagemod.FIRECRAWL_WAIT_MS > 0, \
+assert _fc_captured["wait_for"] == _fcmod.FIRECRAWL_WAIT_MS > 0, \
     "Scrape ohne wait_for: Firecrawl rendert das Seiten-JS nicht zuverlaessig"
 
 # Firecrawl search: hits from v2 (web) and v1 responses (data), object or dict
-from bbs_browser.page import _search_results, page_from_search_results
+from bbs_browser.firecrawl import _search_results
+from bbs_browser.page import page_from_search_results
 assert _search_results({"web": [{"url": "https://a.de", "title": "A", "description": "d"}]}) \
     == [("https://a.de", "A", "d")]
 assert _search_results({"data": [{"url": "https://b.de"}]}) == [("https://b.de", "https://b.de", "")]
@@ -846,23 +848,23 @@ class _FcBrowser:
 
 _so = SysOp(_T(fast=True), _FcBrowser())
 _tools = {tl["name"]: tl["func"] for tl in _so._tool_registry()}
-_fs_orig = _pagemod.firecrawl_search
-_pagemod.firecrawl_search = lambda q, key, base, limit=8: ([("https://t.de", "Treffer", "Snippet")], None)
+_fs_orig = _fcmod.firecrawl_search
+_fcmod.firecrawl_search = lambda q, key, base, limit=8: ([("https://t.de", "Treffer", "Snippet")], None)
 try:
     _out = _tools["im_netz_suchen"]("testsuche")
 finally:
-    _pagemod.firecrawl_search = _fs_orig
+    _fcmod.firecrawl_search = _fs_orig
 assert "[1] Treffer -> https://t.de" in _out and "Snippet" in _out
 
 # If the search API AND DDG both fail, BOTH reasons show up in the tool result —
 # previously the tool swallowed the error and just reported "No results".
 _fp_orig = _pagemod.fetch_page
-_pagemod.firecrawl_search = lambda q, key, base, limit=8: ([], "kein Credit")
+_fcmod.firecrawl_search = lambda q, key, base, limit=8: ([], "kein Credit")
 _pagemod.fetch_page = lambda url, cfg=None, **kw: (None, "NO CARRIER")
 try:
     _out = _tools["im_netz_suchen"]("testsuche")
 finally:
-    _pagemod.firecrawl_search = _fs_orig
+    _fcmod.firecrawl_search = _fs_orig
     _pagemod.fetch_page = _fp_orig
 assert "kein Credit" in _out and "NO CARRIER" in _out
 
