@@ -12,7 +12,7 @@ plain numeric input.
 import re
 import sys
 
-from . import keys
+from . import boxes, keys
 from .constants import BOLD, CLEAR, DIM, INVERT, RESET, screen_width
 from .i18n import t
 
@@ -58,12 +58,6 @@ def _seek(data, idx, delta):
     return idx
 
 
-def _seg(title, width):
-    """Box heading in the classic style: ─[ TITLE ]──────"""
-    head = f"─[ {title} ]" if title else ""
-    return head[:width].ljust(width, "─")
-
-
 def pane_lines(term, panes, titles, zone, sel):
     """The two side-by-side registers as a finished box.
 
@@ -73,7 +67,7 @@ def pane_lines(term, panes, titles, zone, sel):
     col_l = (width - 3) // 2
     col_r = width - 3 - col_l
     c = term.color
-    out = [c + "┌" + _seg(titles[0], col_l) + "┬" + _seg(titles[1], col_r) + "┐" + RESET]
+    out = [c + boxes.split_top(col_l, col_r, titles[0], titles[1]) + RESET]
 
     def cell(rows, pos, cwidth, active):
         if pos >= len(rows):
@@ -89,7 +83,7 @@ def pane_lines(term, panes, titles, zone, sel):
     for pos in range(max(len(panes[0]), len(panes[1]))):
         out.append(c + "│" + cell(panes[0], pos, col_l, zone == 1)
                    + c + "│" + cell(panes[1], pos, col_r, zone == 2) + c + "│" + RESET)
-    out.append(c + "└" + "─" * col_l + "┴" + "─" * col_r + "┘" + RESET)
+    out.append(c + boxes.split_bottom(col_l, col_r) + RESET)
     return out
 
 

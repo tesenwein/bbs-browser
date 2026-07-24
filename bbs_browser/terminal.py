@@ -5,7 +5,7 @@ import time
 
 from .constants import AMBER, BOLD, DIM, INVERT, RESET, CLEAR, screen_width
 from .i18n import t
-from . import wordmark
+from . import boxes, wordmark
 
 
 def banner():
@@ -294,10 +294,10 @@ class Terminal:
     def box(self, rows):
         self._status_wipe()
         inner = screen_width() - 4
-        print(self.color + "╔" + "═" * (screen_width() - 2) + "╗" + RESET)
+        print(self.color + boxes.double_top(screen_width()) + RESET)
         for row in rows:
             print(self.color + "║ " + BOLD + row[:inner].ljust(inner) + RESET + self.color + " ║" + RESET)
-        print(self.color + "╚" + "═" * (screen_width() - 2) + "╝" + RESET)
+        print(self.color + boxes.double_bottom(screen_width()) + RESET)
         self._status_redraw()
 
     def clear(self):

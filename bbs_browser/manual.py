@@ -210,8 +210,9 @@ def _section(title, rows, width):
 
     inner = width - 4                      # '│ ' + content + ' │'
     desc_col = max(20, inner - SYNTAX_COL - 1)
-    head = f"┌─[ {title} ]"
-    out = [head + "─" * max(0, width - len(head) - 1) + "┐"]
+    from .boxes import single_top
+
+    out = [single_top(width, title)]
     for syntax, kurz in rows:
         wrapped = textwrap.wrap(kurz, desc_col) or [""]
         if len(syntax) > SYNTAX_COL:       # long syntax gets its own line
@@ -222,7 +223,9 @@ def _section(title, rows, width):
         for i, part in enumerate(wrapped):
             left = first if i == 0 else ""
             out.append(f"│ {left:<{SYNTAX_COL}} {part:<{desc_col}} │")
-    out.append("└" + "─" * (width - 2) + "┘")
+    from .boxes import single_bottom
+
+    out.append(single_bottom(width))
     return out
 
 
@@ -232,10 +235,12 @@ def overview():
 
     width = max(60, min(screen_width(), 100))
     title = t("manual.overview_title")
+    from .boxes import double_bottom, double_top
+
     out = ["",
-           "╔" + "═" * (width - 2) + "╗",
+           double_top(width),
            "║ " + title[:width - 4].ljust(width - 4) + " ║",
-           "╚" + "═" * (width - 2) + "╝"]
+           double_bottom(width)]
     for category in (NAVIGATION, SEITE, ABLAGE, KI, SPIELE, SYSTEM):
         rows = [(s, k) for _, s, c, k, _ in FEATURES if c == category]
         if not rows:
