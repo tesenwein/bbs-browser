@@ -15,33 +15,13 @@ from .page import FIRECRAWL_CLOUD, firecrawl_check, firecrawl_reset, normalize_b
 from .state import (clear_sections, load_section, save_section, set_ui,
                     toggle_ui)
 
+from .menukit import cycle as _cycle
+from .menukit import mask as _mask
+from .menukit import onoff as _onoff
+from .menukit import status_tag as _status_tag
+
 BAUD_RATES = (0, 2400, 9600)
 COLOR_MODES = ("amber", "green", "auto", "multi")
-
-
-def _status_tag(status):
-    return {"OK": "[ OK ]", "WARN": t("configmenu.status_warn"), "FEHLER": t("configmenu.status_error")}.get(
-        status, "[????]"
-    )
-
-
-def _mask(secret):
-    return (secret[:10] + "…") if secret else t("configmenu.not_set")
-
-
-def _onoff(value):
-    return t("configmenu.on") if value else t("configmenu.off")
-
-
-def _cycle(seq, current, direction):
-    """Next value in a fixed sequence — forwards as well as backwards."""
-    seq = list(seq)
-    try:
-        idx = seq.index(current)
-    except ValueError:
-        idx = 0
-        direction = 0 if direction > 0 else direction
-    return seq[(idx + direction) % len(seq)]
 
 
 def _confirm(term, key):
