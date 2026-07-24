@@ -241,7 +241,11 @@ class Terminal:
         label = self.color + BOLD + t("render.image_label", alt=alt or url) + RESET
         if not art:
             return [label]
-        if art.get("luma"):
+        if art.get("rgb"):
+            from .images import rgb_halfblock_lines
+
+            body = rgb_halfblock_lines(art["rgb"])
+        elif art.get("luma"):
             body = halfblock_lines(art["luma"], self.color)
         else:
             body = [self.color + DIM + line[:screen_width()] for line in art["lines"]]

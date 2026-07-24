@@ -7,7 +7,7 @@ advances — and the old numeric hotkeys still work unchanged.
 
 from urllib.parse import urlparse
 
-from . import db, headers, i18n, lightbar
+from . import colors, db, headers, i18n, lightbar
 from .constants import (AMBER, GREEN, HEADER_MODES, IMG_SETTINGS, RESET, DIM,
                         invalidate_layout, screen_width)
 from .i18n import t
@@ -16,7 +16,7 @@ from .state import (clear_sections, load_section, save_section, set_ui,
                     toggle_ui)
 
 BAUD_RATES = (0, 2400, 9600)
-COLOR_MODES = ("amber", "green", "auto")
+COLOR_MODES = ("amber", "green", "auto", "multi")
 
 
 def _status_tag(status):
@@ -59,6 +59,7 @@ def _reset_display(term, browser):
     browser.auto_template = False
     browser.saver_idle = 300
     browser.color_auto = False
+    colors.set_multi(False)
     term.color = AMBER
     term.fast = False
     term.baud = 9600
@@ -832,6 +833,8 @@ def _display_menu(term, browser):
     def color_mode():
         if browser.color_auto:
             return "auto"
+        if colors.multi_active():
+            return "multi"
         return "green" if term.color == GREEN else "amber"
 
     def rows():
@@ -861,7 +864,10 @@ def _display_menu(term, browser):
         elif key == "4":
             mode = _cycle(COLOR_MODES, color_mode(), direction)
             browser.color_auto = mode == "auto"
-            if mode != "auto":
+            colors.set_multi(mode == "multi")
+            if mode == "multi":
+                term.color = colors.MULTI_TEXT
+            elif mode != "auto":
                 term.color = GREEN if mode == "green" else AMBER
             set_ui("color", mode)
         elif key == "6":

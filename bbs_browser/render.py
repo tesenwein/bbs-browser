@@ -6,7 +6,7 @@ import textwrap
 
 from . import bigtext
 from .constants import BOLD, DIM, MARKER_RE, RESET, screen_width, screen_lines
-from .images import halfblock_lines
+from .images import halfblock_lines, rgb_halfblock_lines
 from .i18n import t
 
 RAW = "__raw__"                    # Line is already styled, print directly
@@ -237,7 +237,11 @@ def layout_page(page, term_color):
             # doesn't cut through the middle of an image.
             gid = f"img{len(lines)}"
             lines.append((BOLD, t("render.image_label", alt=b['alt']), gid))
-            if b.get("luma"):
+            if b.get("rgb"):
+                # Multi-color mode: real image colors, no phosphor tint.
+                for raw in rgb_halfblock_lines(b["rgb"]):
+                    lines.append((RAW, raw, gid))
+            elif b.get("luma"):
                 # Halfblock image: the phosphor tone the page is running in
                 # is only known here. Already styled, so no more cutting —
                 # a cut in the middle of an escape sequence would break the

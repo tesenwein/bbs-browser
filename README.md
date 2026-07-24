@@ -311,10 +311,13 @@ Under **Display**: `1` Images, `2` Image width, `3` Page header, `4` Color,
 effect, `7` Baud, `8` Sound, `9` Screensaver idle in seconds, `10` Language,
 `11` Reset display settings.
 
-**Smart color mode:** Color cycles through AMBER → GREEN → **AUTO**. In AUTO the
-browser tints the "screen" per page: from the page's `theme-color` the nearest
-phosphor tone is chosen (amber, green, cyan, blue, magenta, red); without a useful
-brand color, every domain gets its own stable color.
+**Smart color mode:** Color cycles through AMBER → GREEN → **AUTO** → **MULTI**.
+In AUTO the browser tints the "screen" per page: from the page's `theme-color`
+the nearest phosphor tone is chosen (amber, green, cyan, blue, magenta, red);
+without a useful brand color, every domain gets its own stable color. MULTI
+colors by role like a classic ANSI BBS instead: body copy gray, titles and link
+markers yellow, frames and rules blue — and half-block images render in the
+image's real colors instead of the phosphor tone.
 
 **Baud simulation:** OFF → 2400 → 9600 (default: 9600). Pages stream in like through
 a modem.

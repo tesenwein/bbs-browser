@@ -14,7 +14,8 @@ break the layout.
 import random
 
 from .constants import BOLD, DIM, RESET
-from .images import fetch_logo, halfblock_lines
+from .colors import multi_active
+from .images import fetch_logo, halfblock_lines, rgb_halfblock_lines
 from .state import load_section, save_section
 
 W = 76                    # Total width of a banner in characters
@@ -538,7 +539,8 @@ def art_height(art):
     if not art:
         return 0
     if isinstance(art, dict):
-        return len(art.get("luma") or []) // 2 or len(art.get("lines") or [])
+        rows = art.get("luma") or art.get("rgb") or []
+        return len(rows) // 2 or len(art.get("lines") or [])
     return len(art)   # Legacy cache entries: plain character rows
 
 
@@ -549,13 +551,15 @@ def art_lines(art, term_color=""):
     NOT their character length — hence this is computed using the known
     raster width rather than .center()."""
     inner = W - 2
-    if isinstance(art, dict) and art.get("luma"):
-        rows = art["luma"]
+    if isinstance(art, dict) and (art.get("luma") or art.get("rgb")):
+        rows = art.get("luma") or art["rgb"]
         raster = len(rows[0]) if rows else 0
         pad = max(0, (inner - raster) // 2)
+        body = (rgb_halfblock_lines(rows) if art.get("rgb")
+                else halfblock_lines(rows, term_color))
         return [
             " " * pad + line + " " * max(0, inner - raster - pad)
-            for line in halfblock_lines(rows, term_color)
+            for line in body
         ]
     lines = art.get("lines") if isinstance(art, dict) else art
     return [row.center(inner)[:inner] for row in lines or []]
@@ -586,12 +590,14 @@ def logo_art(domain, urls, mode="blocks"):
     page changes its logos OR the render mode, the cache falls out on its
     own — entries without a mode date from the ASCII era and are refetched."""
     urls = [u for u in (urls or []) if u]
+    color = mode == "blocks" and multi_active()
     cache = load_section("logos")
     entry = cache.get(domain)
-    if isinstance(entry, dict) and entry.get("urls") == urls and entry.get("mode") == mode:
+    if (isinstance(entry, dict) and entry.get("urls") == urls
+            and entry.get("mode") == mode and entry.get("color", False) == color):
         return entry.get("art") or None
-    art = next((a for a in (fetch_logo(u, mode=mode) for u in urls) if a), None)
-    cache[domain] = {"urls": urls, "mode": mode, "art": art or []}
+    art = next((a for a in (fetch_logo(u, mode=mode, color=color) for u in urls) if a), None)
+    cache[domain] = {"urls": urls, "mode": mode, "color": color, "art": art or []}
     save_section("logos", cache)
     return art
 

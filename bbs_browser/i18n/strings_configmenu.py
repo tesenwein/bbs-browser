@@ -245,6 +245,7 @@ STRINGS = {
     "configmenu.color_auto": {"de": "AUTO (intelligent, pro Seite)", "en": "AUTO (smart, per page)"},
     "configmenu.color_green": {"de": "GRUEN", "en": "GREEN"},
     "configmenu.color_amber": {"de": "AMBER", "en": "AMBER"},
+    "configmenu.color_multi": {"de": "MULTI (Rollenfarben, ANSI-BBS)", "en": "MULTI (role colors, ANSI BBS)"},
     "configmenu.baud_sim": {"de": "Baud-Simulation", "en": "Baud simulation"},
     "configmenu.baud_off": {"de": "AUS (volle Geschwindigkeit)", "en": "OFF (full speed)"},
     "configmenu.sound": {"de": "Sound", "en": "Sound"},

@@ -735,11 +735,16 @@ class SysOp:
             from .state import set_ui
 
             def farbe(wert):
+                from . import colors
+
                 mode = str(wert).strip().lower()
-                if mode not in ("green", "amber", "auto"):
-                    return "Erlaubt: green, amber, auto."
+                if mode not in ("green", "amber", "auto", "multi"):
+                    return "Erlaubt: green, amber, auto, multi."
                 browser.color_auto = mode == "auto"
-                if mode != "auto":
+                colors.set_multi(mode == "multi")
+                if mode == "multi":
+                    sysop.term.color = colors.MULTI_TEXT
+                elif mode != "auto":
                     sysop.term.color = GREEN if mode == "green" else AMBER
                 set_ui("color", mode)
                 return None
@@ -787,7 +792,8 @@ class SysOp:
                                lambda w: setattr(browser, "img_width", set_ui("img_width", max(10, int(w)))) and None),
                 "tipp_effekt": ("an/aus — Text zeichenweise austippen",
                                 _bool_setter("fast", lambda v: _set_fast(not v))),
-                "farbe": ("green/amber/auto — Phosphorfarbe des Terminals", farbe),
+                "farbe": ("green/amber/auto/multi — Phosphorfarbe des Terminals"
+                          " (multi = Rollenfarben im ANSI-BBS-Stil)", farbe),
                 "baud": ("Zahl — simulierte Baudrate, 0 = aus",
                          lambda w: _set_baud(set_ui("baud", max(0, int(w))))),
                 "sound": ("an/aus — Modemgeraeusche und Signaltoene",
