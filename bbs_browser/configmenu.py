@@ -45,7 +45,7 @@ def _cycle(seq, current, direction):
 
 
 def _confirm(term, key):
-    return (term.prompt(t(key)) or "").strip().lower() in ("j", "ja", "y", "yes")
+    return term.confirm(t(key))
 
 
 def _reset_display(term, browser):
@@ -439,8 +439,7 @@ def _template_menu(term, browser):
             term.error(t("configmenu.invalid_choice"))
             continue
         domain = templates[idx]["domain"]
-        if (term.prompt(t("configmenu.templates_delete_confirm", domain=domain))
-                or "").strip().lower() in ("j", "ja", "y", "yes"):
+        if term.confirm(t("configmenu.templates_delete_confirm", domain=domain)):
             db.template_delete(domain)
             term.type_out(t("configmenu.templates_deleted", domain=domain), delay=0.003)
             # The numbering shifts after a delete — back to a stable anchor.

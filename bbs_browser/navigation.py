@@ -210,8 +210,7 @@ def command_loop(browser, sysop, initial=None):
         elif op == "q":
             # Only hang up after confirmation — otherwise a mistyped 'q'
             # would end the whole session.
-            answer = (term.prompt(t("navigation.hangup_confirm")) or "").strip().lower()
-            if answer not in ("j", "ja", "y", "yes"):
+            if not term.confirm(t("navigation.hangup_confirm")):
                 continue
             term.type_out(t("navigation.hangup_message"), delay=0.02)
             from .state import save_state
