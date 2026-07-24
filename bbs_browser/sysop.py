@@ -646,9 +646,8 @@ class SysOp:
 
         def im_netz_suchen(begriff):
             from urllib.parse import quote_plus
-            from .page import (
-                fetch_page, firecrawl_search, normalize_base_url, page_text,
-            )
+            from .firecrawl import firecrawl_search
+            from .page import fetch_page, normalize_base_url, page_text
             fc_cfg = browser.firecrawl if browser else {}
             fc_key = firecrawl_key(fc_cfg)
             fc_base = normalize_base_url(fc_cfg.get("base_url"))
