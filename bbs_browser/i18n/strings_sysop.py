@@ -438,10 +438,6 @@ STRINGS = {
     },
 
     # Chat
-    "sysop.chat_title": {
-        "de": "SYSOP CHAT · leere Zeile beendet",
-        "en": "SYSOP CHAT · empty line to exit",
-    },
     "sysop.chat_connected": {
         "de": "SysOp ist in der Leitung...",
         "en": "SysOp is on the line...",
@@ -469,6 +465,49 @@ STRINGS = {
     "sysop.chat_rename_cleared": {
         "de": "Chatname zurueckgesetzt.",
         "en": "Chat name reset.",
+    },
+    "sysop.chat_title_named": {
+        "de": "SYSOP CHAT · {name}",
+        "en": "SYSOP CHAT · {name}",
+    },
+    "sysop.chat_commands": {
+        "de": "Befehle: /neu = neues Gespraech · /chats = Uebersicht · /name <Titel> · leere Zeile oder 'exit' beendet",
+        "en": "Commands: /new = new conversation · /chats = board · /name <title> · empty line or 'exit' to leave",
+    },
+    "sysop.chat_new_started": {
+        "de": "Neues Gespraech eroeffnet.",
+        "en": "New conversation opened.",
+    },
+    "sysop.chat_titled": {
+        "de": "» Gespraech vermerkt als '{title}'.",
+        "en": "» Conversation filed as '{title}'.",
+    },
+    "sysop.title_system": {
+        "de": ("Du vergibst Titel fuer Chatverlaeufe. Antworte mit GENAU EINEM "
+               "kurzen Titel (2-5 Woerter, max. 40 Zeichen) in der Sprache des "
+               "Gespraechs. Keine Anfuehrungszeichen, kein Punkt, keine "
+               "Erklaerung."),
+        "en": ("You assign titles to chat logs. Reply with EXACTLY ONE short "
+               "title (2-5 words, max 40 characters) in the language of the "
+               "conversation. No quotes, no period, no explanation."),
+    },
+
+    # Chat board
+    "sysop.board_title": {
+        "de": "SYSOP CHATS — MESSAGE BASE",
+        "en": "SYSOP CHATS — MESSAGE BASE",
+    },
+    "sysop.board_new": {
+        "de": "Neues Gespraech beginnen",
+        "en": "Start a new conversation",
+    },
+    "sysop.board_line": {
+        "de": "{count:>4} Zeilen · {when}",
+        "en": "{count:>4} lines · {when}",
+    },
+    "sysop.board_hint": {
+        "de": "↑/↓ waehlen · Enter oeffnen · n = neu · x = loeschen · ESC zurueck",
+        "en": "↑/↓ select · Enter open · n = new · x = delete · ESC back",
     },
 
     # Firecrawl

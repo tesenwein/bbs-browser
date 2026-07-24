@@ -17,6 +17,8 @@ def _label(channel):
         return title
     if channel == "sysop":
         return t("chatlog.channel_sysop")
+    if channel.startswith("sysop:"):
+        return t("chatlog.channel_sysop_n", num=channel[6:])
     if channel.startswith("user:"):
         return channel[5:]
     return channel
@@ -80,11 +82,11 @@ def resume_by_number(term, browser, raw):
 
 def _resume(term, browser, channel):
     """Resumes the saved history — with the SysOp or with the caller."""
-    if channel == "sysop":
+    if channel == "sysop" or channel.startswith("sysop:"):
         if not browser or not browser.sysop:
             term.error(t("chatlog.resume_unavailable"))
             return
-        browser.sysop.chat()
+        browser.sysop.chat(channel=channel)
         return
     if channel.startswith("user:"):
         if not browser or not browser.users:

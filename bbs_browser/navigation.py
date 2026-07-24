@@ -133,13 +133,19 @@ def command_loop(browser, sysop, initial=None):
         elif op == "dragon":
             from .games import games_menu
             games_menu(term, "dragon")
+        elif op == "space":
+            from .games import games_menu
+            games_menu(term, "space")
         elif op == "chat":
             if arg.isdigit():
                 # 'chat <nr>' resumes the conversation with that number from 'log'.
                 from .chatlog import resume_by_number
                 resume_by_number(term, browser, arg)
-            else:
+            elif arg.lower() in ("neu", "new", "n"):
+                sysop.new_chat()
                 sysop.chat()
+            else:
+                sysop.chat_board()
         elif op == "log":
             from .chatlog import run as show_chatlog
             show_chatlog(term, arg, browser)

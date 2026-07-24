@@ -3,6 +3,7 @@
 STRINGS = {
     "chatlog.title": {"de": "CHATVERLAUF", "en": "CHAT LOG"},
     "chatlog.channel_sysop": {"de": "SYSOP", "en": "SYSOP"},
+    "chatlog.channel_sysop_n": {"de": "SYSOP #{num}", "en": "SYSOP #{num}"},
     "chatlog.empty": {"de": "Noch kein Chat gespeichert.", "en": "No chats stored yet."},
     "chatlog.line": {
         "de": "  {num:>2}) {name:<16} {count:>4} Zeilen   zuletzt {when}",

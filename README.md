@@ -254,6 +254,7 @@ automatically fall back to pure numeric input.
 | `sv` / `matrix` | Start matrix rain now |
 | `game [name]` | Game hall — `game paddle\|stacker\|snake\|bricks` starts directly |
 | `dragon` | Door game 'The Ancient Wyrm' — also `game dragon` |
+| `space` | Door game 'Star Courier' — also `game space` |
 | `c` | **Config menu** |
 | `fc` | Firecrawl check |
 | `? [command]` | Help — `? rss` explains a command in detail |
@@ -265,7 +266,7 @@ see [AI SysOp](#ai-sysop).
 
 **Aliases:** `g`/`dial` for `d`, `search` for `s`, `summary` for `sum`,
 `form` for `fm`, `games` for `game`. `paddle`, `stacker`,
-`snake`, `bricks` and `dragon` also work without the `game` prefix.
+`snake`, `bricks`, `dragon` and `space` also work without the `game` prefix.
 
 **Keyboard:** At the `-- MORE --` prompt, `q` breaks the rest of the page. Ctrl+C
 at input discards the line; **two in a row hang up** (`+++ATH` / `NO CARRIER`).
@@ -401,6 +402,21 @@ through a pipe.
 | **Tavern**          | Heal wounds, buy potions, store gold in chest                |
 | **Wyrm's Lair**     | Rank 12+ — win and start over ennobled                       |
 
+#### Star Courier
+
+`space` (also `game space`) opens the trading door — twelve sectors on a
+ring, each trade post with its own daily prices for ore, isotopes and
+circuitry. Like the Wyrm it is a plain text door and works through a pipe.
+
+| Station             | What Happens There                                           |
+| ------------------- | ------------------------------------------------------------ |
+| **Warp jump**       | 20 fuel per day; a jump costs its ring distance — pirates prowl the lanes |
+| **Trade post**      | Buy low, warp, sell high; prices hold until midnight         |
+| **Laser deck**      | From mining laser to sunsplitter                             |
+| **Shield yard**     | Bare hull through null screen — shields also grow the hull   |
+| **Station office**  | Repairs, nanokits, hold upgrades, the safe bank account      |
+| **Wreck field**     | Sector 12 — from plasma battery up the Hollow Colossus waits |
+
 In combat: `a` attack, `h` potion, `f` flee, `s` hero letter. Die and you wake up
 next day — **without the gold you carried**; what's in the chest stays. In the
 forest you might meet one of the AI callers from `w`: same personas, same handles,
@@ -448,7 +464,7 @@ role). `-` deletes them.
 | `sum`       | Summarize page as SysOp digest                        |
 | `ask <question>` | Ask SysOp about current page; prompts if no argument |
 | `go <text>` | SysOp navigates to a matching link — if it looks like a URL, dials directly |
-| `chat`      | Chat with SysOp — knows current page, can surf & search and explain any feature via handbook tool; `chat <nr>` continues an old thread from `log` |
+| `chat`      | Chat board: any number of SysOp conversations side by side — lightbar list with titles, `n` new / `x` delete, AI names each thread after the first exchange; `chat new` starts fresh, `chat <nr>` continues a thread from `log`, in-chat `/new`, `/chats`, `/name <title>` |
 | `log`       | Saved chat threads — `log <nr>` reads, `chat <nr>` continues, `log del <nr>` and `log clear` delete |
 | `w`         | Who's online — list of AI callers with node, handle, baud rate, idle time |
 | `p <nr>`    | Private chat with caller `<nr>` — persona from 1989, history per handle |
@@ -460,7 +476,10 @@ The agent has ten tools: read page, list links, follow link, dial, search,
 Firecrawl scrape, **read on web** and **search web** (both in background, without
 changing your screen) plus two handbook tools to explain any browser feature.
 `chat` pushes the current page once as context and refreshes it when you scroll;
-the thread keeps the last 20 exchanges.
+each thread keeps the last 20 exchanges. Conversations live side by side like
+threads on a message base: the board (`chat`) lists them with title, line count
+and last activity, and an untitled thread is named by the AI after the first
+exchange — like any modern chat client, just with more phosphor.
 
 ### Style Templates
 

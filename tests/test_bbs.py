@@ -316,6 +316,23 @@ assert any(c["channel"] == "probe-kanal" and c["count"] == 2 for c in _dbmod.cha
 _dbmod.chat_clear("probe-kanal")
 assert _dbmod.chat_history("probe-kanal") == []
 
+# Multi-chat: fresh channels, prefix filter, active-chat marker
+_ch2 = _dbmod.new_chat_channel("sysop")
+_ch3 = _dbmod.new_chat_channel("sysop")
+assert _ch2 != _ch3 and _ch2.startswith("sysop:") and _ch3.startswith("sysop:"), \
+    "new_chat_channel liefert keine frischen Kanaele"
+_dbmod.chat_append(_ch2, "user", "hallo")
+_dbmod.chat_append("user:XYZ", "user", "hi")
+_sysop_only = _dbmod.chat_channels(prefix="sysop")
+assert any(c["channel"] == _ch2 for c in _sysop_only), "Prefix-Filter verliert SysOp-Chat"
+assert not any(c["channel"] == "user:XYZ" for c in _sysop_only), "Prefix-Filter laesst Fremdkanal durch"
+_dbmod.set_active_chat(_ch2)
+assert _dbmod.active_chat() == _ch2
+_dbmod.chat_clear()
+assert _dbmod.active_chat() == "", "Vollreset loescht den aktiven Chat nicht"
+assert _dbmod.new_chat_channel("sysop") == "sysop:2", "Vollreset setzt den Zaehler nicht zurueck"
+_dbmod.chat_clear()
+
 # Migration: old JSON files migrate once into a fresh DB
 _mig_dir = tempfile.mkdtemp(prefix="bbs-mig-")
 _old_state = os.path.join(_mig_dir, "state.json")
@@ -364,8 +381,10 @@ assert _dbmod.chat_history("sysop") == [], "'log del' hat nicht geloescht"
 class _ResumeSysop:
     def __init__(self):
         self.calls = 0
-    def chat(self):
+        self.channels = []
+    def chat(self, channel=None):
         self.calls += 1
+        self.channels.append(channel)
 
 class _ResumeUsers:
     def __init__(self):
@@ -1485,6 +1504,47 @@ _woken = _dragon.load_hero()
 assert _woken["alive"] and _woken["fights"] == _dragon.FIGHTS_PER_DAY
 assert _woken["hp"] == _dragon.max_hp(_woken)
 _dragon.save_section(_dragon.SECTION, {})
+
+# --- Door game 'Star Courier' ----------------------------------------------
+from bbs_browser import space as _space
+
+_ship = _space._fresh()
+assert _space.max_hull(_ship) == 50 and _space.laser_power(_ship) > 0
+assert _space.hold_size(_ship) == _space.HOLDS[0][1] and _space.cargo_load(_ship) == 0
+
+# Prices are deterministic within a day and vary across sectors.
+assert _space.price("ore", 3, "2026-07-24") == _space.price("ore", 3, "2026-07-24")
+_day_prices = {_space.price("ore", s, "2026-07-24") for s in range(1, _space.SECTORS + 1)}
+assert len(_day_prices) > 1, "Alle Sektoren zahlen denselben Erzpreis"
+
+# The ring distance burns fuel the short way round.
+assert _space._distance(1, 2) == 1
+assert _space._distance(1, _space.SECTORS) == 1
+assert _space._distance(1, 7) == 6
+
+# An invincible ship wins the fight and salvages credits.
+_ship["hull"] = 9999
+_pirate = _space.pirate_for(_ship)
+assert _space.fight(_t_auto, _ship, _pirate) == "win"
+
+# Whoever hits 0 hull drifts in the pod — cargo and cash gone, bank stays.
+_wreck = _space._fresh()
+_wreck["hull"] = 1
+_wreck["credits"] = 500
+_wreck["bank"] = 700
+_wreck["cargo"]["ore"] = 10
+assert _space.fight(_t_auto, _wreck, {"name": "X", "hp": 10**6, "dmg": 60,
+                                      "credits": 0}) == "dead"
+_space._wrecked(_t_auto, _wreck, {"name": "X"})
+assert _wreck["credits"] == 0 and _wreck["bank"] == 700
+assert _space.cargo_load(_wreck) == 0 and not _wreck["alive"]
+
+# The new game day refuels the tanks and puts the wrecked back in the air.
+_space.save_section(_space.SECTION, {**_wreck, "day": "1989-01-01"})
+_flying = _space.load_ship()
+assert _flying["alive"] and _flying["fuel"] == _space.WARPS_PER_DAY
+assert _flying["hull"] == _space.max_hull(_flying)
+_space.save_section(_space.SECTION, {})
 
 
 # -- Cookie banner: gone, without ever consenting -------------------------------

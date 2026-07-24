@@ -22,6 +22,7 @@ from .strings_page import STRINGS as _S_PAGE
 from .strings_render import STRINGS as _S_RENDER
 from .strings_retronet import STRINGS as _S_RETRONET
 from .strings_screensaver import STRINGS as _S_SCREENSAVER
+from .strings_space import STRINGS as _S_SPACE
 from .strings_styletpl import STRINGS as _S_STYLETPL
 from .strings_sysop import STRINGS as _S_SYSOP
 from .strings_terminal import STRINGS as _S_TERMINAL
@@ -35,7 +36,7 @@ for _catalog in (
     _S_BROWSER, _S_BULLETINS, _S_CHATLOG, _S_CLI, _S_CONFIGMENU, _S_DRAGON, _S_FEEDS, _S_GAMES, _S_IMAGES,
     _S_LIGHTBAR, _S_MANUAL,
     _S_NAVIGATION, _S_NOSTALGIA, _S_PAGE, _S_RENDER, _S_RETRONET,
-    _S_SCREENSAVER, _S_SYSOP, _S_TERMINAL, _S_UPDATE, _S_USERS, _S_WEATHER,
+    _S_SCREENSAVER, _S_SPACE, _S_SYSOP, _S_TERMINAL, _S_UPDATE, _S_USERS, _S_WEATHER,
 ):
     ALL_STRINGS.update(_catalog)
 
