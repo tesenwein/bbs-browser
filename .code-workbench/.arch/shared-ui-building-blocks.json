@@ -1,0 +1,29 @@
+{
+  "slug": "shared-ui-building-blocks",
+  "name": "shared-ui-building-blocks",
+  "description": "",
+  "files": [
+    "bbs_browser/boxes.py",
+    "bbs_browser/menukit.py",
+    "bbs_browser/rawscreen.py",
+    "bbs_browser/lightbar.py",
+    "bbs_browser/rpg.py",
+    "bbs_browser/terminal.py"
+  ],
+  "guidelines": [],
+  "anti_patterns": [],
+  "decisions": [],
+  "tags": [
+    "ui",
+    "components",
+    "boxes",
+    "menu",
+    "lightbar",
+    "confirm",
+    "raw-mode",
+    "door-games"
+  ],
+  "dependsOn": [],
+  "updatedAt": "2026-07-24T12:39:49.575Z",
+  "createdAt": "2026-07-24T12:39:49.575Z"
+}
