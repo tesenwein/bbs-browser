@@ -83,13 +83,25 @@ def parse_feed(content, url):
         for entry in root.iter():
             if _local(entry.tag) != "entry":
                 continue
-            title = link = desc = date = ""
+            title = link = link_fallback = desc = date = ""
             for child in entry:
                 name = _local(child.tag)
                 if name == "title":
                     title = _text(child)
-                elif name == "link" and not link:
-                    link = child.get("href", "")
+                elif name == "link":
+                    # Ein Atom-Eintrag hat oft mehrere <link>: der lesbare
+                    # Artikel ist rel="alternate" (oder ganz ohne rel — das
+                    # ist laut RFC 4287 der Default). rel="self"/"edit"/
+                    # "enclosure"/"replies" zeigen woanders hin. Nur das
+                    # erste <link> zu nehmen oeffnet sonst z.B. den API-
+                    # Endpunkt statt der Seite.
+                    href = child.get("href", "")
+                    if href:
+                        rel = child.get("rel") or "alternate"
+                        if rel == "alternate":
+                            link = link or href
+                        else:
+                            link_fallback = link_fallback or href
                 elif name in ("summary", "content"):
                     desc = desc or _text(child)
                 elif name.lower() in DATE_TAGS:
@@ -97,7 +109,7 @@ def parse_feed(content, url):
                     # shouldn't push an old entry back to the top.
                     if name.lower() == "published" or not date:
                         date = _text(child)
-            items.append((title, link, desc, timestamp(date)))
+            items.append((title, link or link_fallback, desc, timestamp(date)))
 
     page.blocks.append({"type": "heading", "content": t("feeds.message_base_heading", title=page.title)})
     for title, link, desc, ts in items[:MAX_ITEMS]:
