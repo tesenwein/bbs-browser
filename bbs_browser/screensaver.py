@@ -6,12 +6,13 @@ import sys
 
 from . import keys
 from .colors import phosphor_rgb
-from .constants import BOLD, CLEAR, RESET
+from .constants import BOLD, RESET
 from .i18n import t
+from .rawscreen import cursor_to as _pos
+from .rawscreen import raw_screen
 
 GLYPHS = "abcdefghijklmnopqrstuvwxyz0123456789#$%&*+=<>:·"
 HEAD = "\033[1;97m"          # hellweisser Tropfenkopf
-HIDE, SHOW = "\033[?25l", "\033[?25h"
 FRAME_S = 0.07
 
 
@@ -21,10 +22,6 @@ def _rain_colors(term_color):
     body = f"\033[38;2;{r};{g};{b}m"
     tail = f"\033[38;2;{int(r * 0.35)};{int(g * 0.35)};{int(b * 0.35)}m"
     return body, tail
-
-
-def _pos(y, x):
-    return f"\033[{y};{x}H"
 
 
 def matrix(term):
@@ -37,9 +34,8 @@ def matrix(term):
     max_trail = max(5, rows // 2)
     drops = [random.randint(-rows * 2, 0) for _ in range(cols)]
     trail = [random.randint(4, max_trail) for _ in range(cols)]
-    sys.stdout.write(HIDE + CLEAR)
     try:
-        with keys.raw_mode():
+        with raw_screen():
             while True:
                 out = []
                 for x in range(cols):
@@ -66,9 +62,6 @@ def matrix(term):
                     break
     except KeyboardInterrupt:
         pass
-    finally:
-        sys.stdout.write(RESET + SHOW + CLEAR)
-        sys.stdout.flush()
 
 
 def prompt_with_saver(term, label, idle_seconds):

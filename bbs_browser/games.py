@@ -5,34 +5,16 @@ just like the Matrix screensaver. High scores go into the state file under
 the "games" section.
 """
 
-import contextlib
 import random
 import sys
 import time
 
 from . import keys, lightbar
-from .constants import BOLD, CLEAR, DIM, RESET
+from .constants import BOLD, DIM, RESET
 from .i18n import t
+from .rawscreen import cursor_to as _pos
+from .rawscreen import raw_screen as _raw_screen
 from .state import load_section, save_section
-
-HIDE, SHOW = "\033[?25l", "\033[?25h"
-
-
-def _pos(y, x):
-    return f"\033[{y};{x}H"
-
-
-@contextlib.contextmanager
-def _raw_screen():
-    """Raw mode + blank screen without cursor — and everything cleanly restored."""
-    sys.stdout.write(HIDE + CLEAR)
-    try:
-        with keys.raw_mode():
-            yield
-    finally:
-        sys.stdout.write(RESET + SHOW + CLEAR)
-        sys.stdout.flush()
-
 
 _key = keys.read_game_key
 
