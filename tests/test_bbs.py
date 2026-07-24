@@ -647,14 +647,14 @@ assert safe_filename("Heise News: Top-Meldung!") == "Heise_News_Top-Meldung.txt"
 assert safe_filename("bild.jpg", ".jpg") == "bild.jpg"
 
 # Gopher/Gemini dispatch importable, retro modules hang off fetch_page
-from bbs_browser.page import fetch_page  # noqa: F811
+from bbs_browser.fetch import fetch_page  # noqa: F811
 
 # Firecrawl (SDK): build_page gets the RAW HTML so the logo AND page structure
 # survive. Firecrawl's cleaned "html" format throws away <head>/<header> —
 # building from that would lose the logo and structure. We mock the scrape and
 # supply raw HTML with a header plus cleaned HTML without a header; the logo
 # only appears in the raw one, which proves the raw HTML was used.
-import bbs_browser.page as _pagemod
+import bbs_browser.fetch as _fetchmod
 import bbs_browser.firecrawl as _fcmod
 _fc_raw = (
     '<html><head><title>FC-Seite</title></head><body>'
@@ -669,7 +669,7 @@ _fc_clean = '<main><h1>Echte Schlagzeile</h1><p>Nur der bereinigte Rumpf.</p></m
 _fc_orig = _fcmod.firecrawl_scrape
 _fcmod.firecrawl_scrape = lambda url, api_key, base: (_fc_clean, "", _fc_raw, None)
 try:
-    _fc_page, _fc_err = _pagemod.fetch_page(
+    _fc_page, _fc_err = _fetchmod.fetch_page(
         "https://fc.de/artikel", {"enabled": True, "api_key": "fc-test"}, render_images=False,
     )
 finally:
@@ -708,16 +708,16 @@ _jsmod.render = lambda url, timeout=20000: (
     _js_calls.append(url),
     ('<html><body><main><p>Playwright-Seite</p></main></body></html>', url),
 )[1]
-_rq_orig = _pagemod.requests.get
-_pagemod.requests.get = lambda *a, **kw: _HttpResp()
+_rq_orig = _fetchmod.requests.get
+_fetchmod.requests.get = lambda *a, **kw: _HttpResp()
 _fcmod.firecrawl_scrape = lambda url, api_key, base: ("", "", "", "Credits aufgebraucht")
 try:
-    _fcp, _fce = _pagemod.fetch_page(
+    _fcp, _fce = _fetchmod.fetch_page(
         "https://fc.de/artikel", {"enabled": True, "api_key": "fc-test"}, render_images=False,
     )
 finally:
     _fcmod.firecrawl_scrape = _fc_orig
-    _pagemod.requests.get = _rq_orig
+    _fetchmod.requests.get = _rq_orig
     _jsmod.available, _jsmod.render = _av_orig, _rd_orig
 assert _fce is None
 assert not _js_calls, "Firecrawl aktiv: Playwright darf nicht anspringen"
@@ -733,14 +733,14 @@ _fcmod.firecrawl_scrape = lambda url, api_key, base: (
     _fc_calls.append(url), ("", "", "", "Host nicht erreichbar"))[1]
 _jsmod.available, _jsmod.render = lambda: True, lambda url: (
     '<html><body><main><p>Playwright-Seite</p></main></body></html>', url)
-_pagemod.requests.get = lambda *a, **kw: _HttpResp()
+_fetchmod.requests.get = lambda *a, **kw: _HttpResp()
 try:
     _fccfg = {"enabled": True, "api_key": "fc-test"}
     for _ in range(_fcmod.FIRECRAWL_MAX_FAILURES):
-        _pagemod.fetch_page("https://fc.de/a", _fccfg, render_images=False)
+        _fetchmod.fetch_page("https://fc.de/a", _fccfg, render_images=False)
     assert _fcmod.firecrawl_muted(), "nach wiederholten Fehlern muss Firecrawl stummgeschaltet sein"
     _n_before = len(_fc_calls)
-    _mp, _ = _pagemod.fetch_page("https://fc.de/b", _fccfg, render_images=False)
+    _mp, _ = _fetchmod.fetch_page("https://fc.de/b", _fccfg, render_images=False)
     assert len(_fc_calls) == _n_before, "stummgeschaltet: Firecrawl darf nicht mehr aufgerufen werden"
     assert not _mp.firecrawl_error, "stummgeschaltet: kein weiterer Firecrawl-Fehler mehr"
     assert "Playwright-Seite" in " ".join(b.get("content", "") for b in _mp.blocks), \
@@ -749,7 +749,7 @@ try:
     assert not _fcmod.firecrawl_muted(), "firecrawl_reset muss den Schalter loesen"
 finally:
     _fcmod.firecrawl_scrape = _fc_orig
-    _pagemod.requests.get = _rq_orig
+    _fetchmod.requests.get = _rq_orig
     _jsmod.available, _jsmod.render = _av_orig, _rd_orig
     _fcmod.firecrawl_reset()
 
@@ -760,7 +760,7 @@ _jsmod.render = lambda url, timeout=20000: (
     + "<p>JS-Absatz mit ordentlich Text fuer den Renderer.</p>" * 10
     + '</main></body></html>', url)
 try:
-    _jsp, _jse = _pagemod.fetch_page("https://js.de/", {}, render_images=False)
+    _jsp, _jse = _fetchmod.fetch_page("https://js.de/", {}, render_images=False)
 finally:
     _jsmod.available, _jsmod.render = _av_orig, _rd_orig
 assert _jse is None and "JS-Absatz" in " ".join(b.get("content", "") for b in _jsp.blocks), \
@@ -779,7 +779,7 @@ _jsmod.render = lambda url, timeout=20000: (
     + "<p>JS-Absatz mit ordentlich Text fuer den Renderer.</p>" * 10
     + '</main></body></html>', url)
 try:
-    _nkp, _nke = _pagemod.fetch_page(
+    _nkp, _nke = _fetchmod.fetch_page(
         "https://js.de/nokey", {"enabled": True}, render_images=False)
 finally:
     _fcmod.firecrawl_scrape = _fc_orig
@@ -822,7 +822,7 @@ assert _fc_captured["wait_for"] == _fcmod.FIRECRAWL_WAIT_MS > 0, \
 
 # Firecrawl search: hits from v2 (web) and v1 responses (data), object or dict
 from bbs_browser.firecrawl import _search_results
-from bbs_browser.page import page_from_search_results
+from bbs_browser.fetch import page_from_search_results
 assert _search_results({"web": [{"url": "https://a.de", "title": "A", "description": "d"}]}) \
     == [("https://a.de", "A", "d")]
 assert _search_results({"data": [{"url": "https://b.de"}]}) == [("https://b.de", "https://b.de", "")]
@@ -858,14 +858,14 @@ assert "[1] Treffer -> https://t.de" in _out and "Snippet" in _out
 
 # If the search API AND DDG both fail, BOTH reasons show up in the tool result —
 # previously the tool swallowed the error and just reported "No results".
-_fp_orig = _pagemod.fetch_page
+_fp_orig = _fetchmod.fetch_page
 _fcmod.firecrawl_search = lambda q, key, base, limit=8: ([], "kein Credit")
-_pagemod.fetch_page = lambda url, cfg=None, **kw: (None, "NO CARRIER")
+_fetchmod.fetch_page = lambda url, cfg=None, **kw: (None, "NO CARRIER")
 try:
     _out = _tools["im_netz_suchen"]("testsuche")
 finally:
     _fcmod.firecrawl_search = _fs_orig
-    _pagemod.fetch_page = _fp_orig
+    _fetchmod.fetch_page = _fp_orig
 assert "kein Credit" in _out and "NO CARRIER" in _out
 
 # Manual as the single source of truth
@@ -939,7 +939,7 @@ _set_lang("de")
 _state.save_section("ai", _saved_ai)                           # reset test state
 
 # Normalized URL handling
-from bbs_browser.page import normalize_url, normalize_base_url
+from bbs_browser.fetch import normalize_url, normalize_base_url
 assert normalize_url("heise.de") == "https://heise.de"
 assert normalize_url(" heise.de ") == "https://heise.de"
 assert normalize_url("http://x.de") == "http://x.de"

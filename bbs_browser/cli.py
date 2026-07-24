@@ -29,7 +29,7 @@ def build_parser():
 
 def list_links_only(url):
     """Tool mode: print the link list of a URL, exit code 1 on error."""
-    from .page import fetch_page, normalize_url
+    from .fetch import fetch_page, normalize_url
     from .state import load_section
 
     page, err = fetch_page(normalize_url(url), load_section("firecrawl"), render_images=False)

@@ -81,7 +81,7 @@ def _page_of(url):
     that fails is it fetched as a page, and even then a feed advertised in
     its <head> still wins: it costs no key."""
     from .feeds import fetch_feed
-    from .page import fetch_page, normalize_url
+    from .fetch import fetch_page, normalize_url
     from .state import load_section
 
     url = normalize_url(url)

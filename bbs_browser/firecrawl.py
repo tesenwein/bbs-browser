@@ -22,7 +22,7 @@ def firecrawl_check(cfg, ai_key=""):
     no credits run, so a real test scrape is done there, checking exactly the
     path the browser takes later (v2 with v1 fallback). Returns
     a list (status, message); status is "OK", "WARN" or "ERROR"."""
-    from .page import normalize_base_url
+    from .fetch import normalize_base_url
     cfg = cfg or {}
     results = []
     api_key = firecrawl_api_key(cfg)
