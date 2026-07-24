@@ -183,7 +183,9 @@ def _install_detached_windows(term, pkg, use_pipx):
     ]
     for pid in pids:
         lines += [
-            'tasklist /FI "PID eq %d" 2>nul | find "%d" >nul' % (pid, pid),
+            # CSV quotes the PID field, so find matches the exact PID and not
+            # a longer PID or a memory figure that merely contains the digits.
+            'tasklist /FI "PID eq %d" /NH /FO CSV 2>nul | find """%d""" >nul' % (pid, pid),
             "if not errorlevel 1 (",
             "  ping -n 2 127.0.0.1 >nul",
             "  goto wait",
@@ -240,16 +242,26 @@ def _install_detached_windows(term, pkg, use_pipx):
 
     try:
         script = os.path.join(tempfile.mkdtemp(prefix="bbs-update-"), "finish-update.cmd")
-        with open(script, "w", encoding="ascii", errors="replace") as f:
+        # cmd.exe parses batch files in the console's OEM codepage — with
+        # plain ASCII an umlaut in the path (C:\Users\Müller\...) would be
+        # mangled to '?' and the install commands would point nowhere.
+        encoding = "oem" if os.name == "nt" else "ascii"
+        with open(script, "w", encoding=encoding, errors="replace") as f:
             f.write("\r\n".join(lines) + "\r\n")
         # DETACHED from our console, but with its own window so the user sees
         # the progress after hanging up.
-        subprocess.Popen(
-            ["cmd", "/c", script],
-            creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
-            | getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0),
-            close_fds=True,
-        )
+        new_console = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+        breakaway = getattr(subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0)
+        try:
+            subprocess.Popen(["cmd", "/c", script],
+                             creationflags=new_console | breakaway,
+                             close_fds=True)
+        except OSError:
+            # Some hosts (Windows Terminal, CI) run us in a job object that
+            # forbids breakaway — then a plain new console still outlives us,
+            # only a killed job would take the helper down with it.
+            subprocess.Popen(["cmd", "/c", script],
+                             creationflags=new_console, close_fds=True)
         return True
     except Exception as exc:
         _emit(term, str(exc))

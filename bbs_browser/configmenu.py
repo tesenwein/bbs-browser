@@ -442,7 +442,8 @@ def _template_menu(term, browser):
                 or "").strip().lower() in ("j", "ja", "y", "yes"):
             db.template_delete(domain)
             term.type_out(t("configmenu.templates_deleted", domain=domain), delay=0.003)
-        at = "a"
+            # The numbering shifts after a delete — back to a stable anchor.
+            at = "a"
 
 
 def _weather_summary():

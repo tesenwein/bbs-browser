@@ -1646,6 +1646,15 @@ _tpl_far = {"version": 1, "content": ".shop", "drop": [],
                       {"sel": "li.artikelnr", "block": "ticker"}],
             "note": ""}
 assert _tpl.coverage(_BS(_tpl_html, "html.parser"), _tpl_far) == (0, 3)
+
+# A selector soupsieve can't compile says nothing about the fit — it is left
+# out of the count entirely instead of dragging the template below the
+# threshold on every page forever.
+_tpl_broken = {"version": 1, "content": ".artikel", "drop": [],
+               "rules": [{"sel": "h1.titel", "block": "banner"},
+                         {"sel": ":::kaputt(((", "block": "ticker"}],
+               "note": ""}
+assert _tpl.coverage(_BS(_tpl_html, "html.parser"), _tpl_broken) == (2, 2)
 _unstyled = build_page(_tpl_html, "https://vorlage.de/a", render_images=False, template=_tpl_far)
 assert not any(b["type"] == "banner" for b in _unstyled.blocks)
 
