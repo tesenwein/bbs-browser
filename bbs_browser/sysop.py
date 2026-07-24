@@ -19,7 +19,7 @@ Claude Haiku 4.5, DeepSeek V4 Flash (Vercel) resp. GPT-4o mini.
 import json
 import os
 
-from . import db, sysop_templater
+from . import db, sysop_chat, sysop_templater
 from .i18n import t
 from .state import load_ai_config, load_section, save_ai_config, save_section
 from .sysop_config import (ENV_KEYS, MAX_AGENT_STEPS, MAX_PAGE_CHARS,
@@ -28,20 +28,8 @@ from .sysop_config import (ENV_KEYS, MAX_AGENT_STEPS, MAX_PAGE_CHARS,
                            detect_provider, estimate_cost, firecrawl_key,
                            persona, price_for, provider_label, set_config_key,
                            tool_label)
+from .sysop_chat import CHAT_CHANNEL, CHAT_TITLE_MAX, REPLAY_LINES  # noqa: F401  (re-export)
 from .sysop_tools import build_tool_registry
-
-CHAT_CHANNEL = "sysop"   # channel prefix of the SysOp chats in history
-CHAT_TITLE_MAX = 40      # a chat title never grows past this
-REPLAY_LINES = 6         # transcript lines shown when re-entering a chat
-
-
-def _chat_when(ts):
-    """Short timestamp for the chat board."""
-    import time
-    try:
-        return time.strftime("%d.%m. %H:%M", time.localtime(ts))
-    except (TypeError, ValueError, OSError):
-        return "?"
 
 
 class _ParagraphStream:
@@ -698,224 +686,48 @@ class SysOp:
         )
 
     # -- Chat (several conversations side by side) -------------------------
+    # Implementation lives in sysop_chat; these thin delegates keep the
+    # public surface (navigation, chatlog, tests) unchanged.
 
     def chat_label(self, channel=None):
         """Display name of a chat: its title, else 'SYSOP' / 'SYSOP #N'."""
-        channel = channel or self.chat_channel
-        title = db.chat_title(channel)
-        if title:
-            return title
-        if channel == CHAT_CHANNEL:
-            return t("chatlog.channel_sysop")
-        return t("chatlog.channel_sysop_n", num=channel.rsplit(":", 1)[-1])
+        return sysop_chat.chat_label(self, channel)
 
     def _switch_chat(self, channel):
-        """Makes `channel` the active conversation and loads its history."""
-        self.chat_channel = channel
-        self.chat_history = db.chat_history(channel, limit=20)
-        self._chat_ctx_url = None
-        db.set_active_chat(channel)
+        return sysop_chat.switch_chat(self, channel)
 
     def new_chat(self):
         """Opens a fresh conversation. The base channel is reused as long
         as it has never been written to."""
-        if not db.chat_history(CHAT_CHANNEL, limit=1) and not db.chat_title(CHAT_CHANNEL):
-            self._switch_chat(CHAT_CHANNEL)
-        else:
-            self._switch_chat(db.new_chat_channel(CHAT_CHANNEL))
-        return self.chat_channel
+        return sysop_chat.new_chat(self)
 
     def chat_board(self):
         """The 'chat' command: pick a conversation from the board, then talk.
         With no stored chats it jumps straight into the first one."""
-        if db.chat_channels(prefix=CHAT_CHANNEL):
-            picked = self._pick_chat()
-            if not picked:
-                return
-            if picked == "new":
-                self.new_chat()
-            else:
-                self._switch_chat(picked)
-        self.chat()
+        return sysop_chat.chat_board(self)
 
     def _pick_chat(self):
-        """Lightbar board of all SysOp chats. Returns a channel, 'new',
-        or None for back. 'x' deletes the highlighted conversation."""
-        from . import lightbar
-        term = self.term
-
-        def entries():
-            return db.chat_channels(prefix=CHAT_CHANNEL)
-
-        def rows():
-            out = []
-            for i, e in enumerate(entries(), 1):
-                marker = "» " if e["channel"] == self.chat_channel else "  "
-                label = (marker + self.chat_label(e["channel"]))[:34]
-                out.append((str(i), label, t(
-                    "sysop.board_line", count=e["count"],
-                    when=_chat_when(e["last"]))))
-            out.append((None, "", ""))
-            out.append(("n", t("sysop.board_new"), ""))
-            return out
-
-        def on_key(pressed, key):
-            if pressed not in ("x", "X") or not key or not key.isdigit():
-                return False
-            listing = entries()
-            idx = int(key) - 1
-            if not 0 <= idx < len(listing):
-                return False
-            channel = listing[idx]["channel"]
-            db.chat_clear(channel)
-            if channel == self.chat_channel:
-                self._switch_chat(CHAT_CHANNEL)
-            return True
-
-        choice = lightbar.menu(
-            term, t("sysop.board_title"), rows,
-            on_key=on_key, hint=t("sysop.board_hint"), page_size=14,
-        )
-        if choice == lightbar.BACK:
-            return None
-        if choice == "n":
-            return "new"
-        listing = entries()
-        if choice.isdigit() and 1 <= int(choice) <= len(listing):
-            return listing[int(choice) - 1]["channel"]
-        return None
+        return sysop_chat.pick_chat(self)
 
     def _chat_divider(self):
-        """Dotted line between chat exchanges — keeps the transcript scannable."""
-        from .constants import DIM, RESET, screen_width
-        self.term.type_out(DIM + "┄" * screen_width() + RESET, delay=0)
+        return sysop_chat.chat_divider(self)
 
     def _replay_tail(self):
-        """A few lines of the stored conversation, dimmed — so resuming a
-        chat feels like picking up the thread, not starting over."""
-        from .constants import DIM, RESET
-        lines = db.chat_transcript(self.chat_channel, limit=REPLAY_LINES)
-        if not lines:
-            return
-        you, name = t("sysop.chat_prompt").strip(), t("sysop.chat_reply_prefix").strip()
-        for line in lines:
-            who = you if line["role"] == "user" else name
-            text = " ".join((line["text"] or "").split())[:200]
-            self.term.type_out(DIM + f"{who} {text}" + RESET, delay=0.0005)
-        self._chat_divider()
+        return sysop_chat.replay_tail(self)
 
     def _auto_title(self, question, reply):
-        """Names an untitled chat after the first exchange — one cheap
-        completion; failures stay silent."""
-        try:
-            text = self._raw_complete(
-                t("sysop.title_system"),
-                [{"role": "user",
-                  "content": f"{question}\n---\n{(reply or '')[:600]}"}],
-                30,
-            )
-        except Exception:
-            return
-        lines = (text or "").strip().strip('"\'').splitlines()
-        title = lines[0][:CHAT_TITLE_MAX].strip() if lines else ""
-        if title:
-            db.chat_set_title(self.chat_channel, title)
-            self.term.type_out(t("sysop.chat_titled", title=title), delay=0.002)
+        return sysop_chat.auto_title(self, question, reply)
 
     def _chat_command(self, msg):
-        """Slash commands inside the chat. Returns 'handled', 'board', or None."""
-        low = msg.lower()
-        if low in ("/neu", "/new"):
-            self.new_chat()
-            self.term.type_out(t("sysop.chat_new_started"), delay=0.003)
-            return "handled"
-        if low in ("/chats", "/menu", "/board"):
-            return "board"
-        if low.startswith("/name"):
-            title = msg[5:].strip()[:CHAT_TITLE_MAX]
-            db.chat_set_title(self.chat_channel, title)
-            self.term.type_out(
-                t("sysop.chat_renamed", title=title) if title
-                else t("sysop.chat_rename_cleared"), delay=0.003)
-            return "handled"
-        if low.startswith("/"):
-            self.term.type_out(t("sysop.chat_commands"), delay=0.003)
-            return "handled"
-        return None
+        return sysop_chat.chat_command(self, msg)
 
     def chat(self, channel=None):
         """Interactive chat with the SysOp. Empty input or 'exit' ends it;
         /neu, /chats and /name manage the conversations."""
-        if channel and channel != self.chat_channel:
-            self._switch_chat(channel)
-        while True:
-            result = self._chat_session()
-            if result != "board":
-                return
-            picked = self._pick_chat()
-            if not picked:
-                return
-            if picked == "new":
-                self.new_chat()
-            else:
-                self._switch_chat(picked)
+        return sysop_chat.chat(self, channel)
 
     def _chat_session(self):
-        """One stretch of conversation in the active channel. Returns
-        'board' when the caller asked for the chat board, else None."""
-        term = self.term
-        if not self.client():
-            return None
-        from .constants import DIM, RESET
-        term.rule(t("sysop.chat_title_named", name=self.chat_label()))
-        self._replay_tail()
-        term.type_out(t("sysop.chat_connected"), delay=0.003)
-        term.type_out(DIM + t("sysop.chat_commands") + RESET, delay=0.0005)
-        while True:
-            msg = term.prompt(t("sysop.chat_prompt"))
-            if not msg or msg.lower() in ("exit", "quit", "q"):
-                term.type_out(t("sysop.chat_goodbye"), delay=0.003)
-                term.rule()
-                return None
-            handled = self._chat_command(msg)
-            if handled == "board":
-                term.rule()
-                return "board"
-            if handled == "handled":
-                # A command may have switched the channel — reprint the header.
-                term.rule(t("sysop.chat_title_named", name=self.chat_label()))
-                continue
-            # Provide the current page as context once (and again as
-            # soon as the caller has a different page on screen).
-            instruction = msg
-            page = self.browser.page if self.browser else None
-            if page and page.url != self._chat_ctx_url:
-                self._chat_ctx_url = page.url
-                ctx = self._page_text(page)[:6000]
-                instruction = (
-                    f"[Kontext — diese Seite hat der Anrufer gerade auf dem Schirm:]\n"
-                    f"{ctx}\n[Ende Kontext]\n\nAnrufer: {msg}"
-                )
-            reply = self.run(
-                instruction, history=self.chat_history[-20:], max_tokens=800, quiet=True,
-            )
-            if reply is None:
-                # Empty reply (e.g. only tool rounds with no final text) doesn't
-                # end the whole session — wait for the next question.
-                term.error(t("sysop.chat_no_reply"))
-                continue
-            # Save with context, so the page stays known for follow-up questions;
-            # for review ('log') `display` holds just the plain question.
-            self.chat_history.append({"role": "user", "content": instruction})
-            self.chat_history.append({"role": "assistant", "content": reply})
-            db.chat_append(self.chat_channel, "user", instruction, display=msg)
-            db.chat_append(self.chat_channel, "assistant", reply)
-            # First full exchange in an untitled chat: let the AI name it,
-            # the way every modern chat client does — but only once.
-            if self.chat_channel not in self._titled and not db.chat_title(self.chat_channel):
-                self._titled.add(self.chat_channel)
-                self._auto_title(msg, reply)
-            self._chat_divider()
+        return sysop_chat.chat_session(self)
 
     # -- Firecrawl via MCP ----------------------------------------------
 
