@@ -19,16 +19,16 @@ Claude Haiku 4.5, DeepSeek V4 Flash (Vercel) resp. GPT-4o mini.
 import json
 import os
 
-from . import db
+from . import db, sysop_templater
 from .i18n import t
 from .state import load_ai_config, load_section, save_ai_config, save_section
 from .sysop_config import (ENV_KEYS, MAX_AGENT_STEPS, MAX_PAGE_CHARS,
-                           MAX_TEMPLATE_STEPS, PROVIDERS, VERCEL_BASE_URL,
+                           PROVIDERS, VERCEL_BASE_URL,
                            active_provider, config_key, default_model,
                            detect_provider, estimate_cost, firecrawl_key,
                            persona, price_for, provider_label, set_config_key,
                            tool_label)
-from .sysop_tools import build_templater_registry, build_tool_registry
+from .sysop_tools import build_tool_registry
 
 CHAT_CHANNEL = "sysop"   # channel prefix of the SysOp chats in history
 CHAT_TITLE_MAX = 40      # a chat title never grows past this
@@ -644,124 +644,29 @@ class SysOp:
         return (text or "").strip() or None
 
     # -- Style templates: learn once per domain, apply locally ------------
+    # Implementation lives in sysop_templater; these thin delegates keep
+    # the public surface (browser, tests) unchanged.
 
     @property
     def TEMPLATE_SYSTEM(self):
-        return t("sysop.templater")
+        return sysop_templater.template_system()
 
     def build_template(self, page):
-        """The `x` path: learns ONE style template for the page's domain and
-        returns it, or None. The AI takes the site apart with tools
-        (outline/probe/preview) and corrects its draft until it holds up on
-        the verification pages too. Costs a handful of calls — once per
-        domain; every further page of that domain then stays free.
-
-        What counts is what preview() MEASURED, not what the AI claims at
-        the end."""
-        from . import styletpl
-
-        client = self.client()
-        if not client or not styletpl.eligible(page):
-            return None
-        term = self.term
-        term.type_out(t("sysop.learning_template"), delay=0.005)
-
-        try:
-            samples = styletpl.collect_samples(
-                page, self._plain_page,
-                log=lambda url: self._status(
-                    t("sysop.template_verify_page", url=url)),
-                # Same line the browser dials with — Firecrawl included, if
-                # it is configured. Otherwise the verification pages would
-                # arrive thinner than the page the template has to fit.
-                firecrawl_cfg=getattr(self.browser, "firecrawl", None),
-            )
-            box = styletpl.Toolbox(samples, self._build_with)
-            plan = box.outline()
-        except Exception as e:
-            term.error(t("sysop.error_template", error=str(e)))
-            return None
-        if plan == "(empty)":
-            return None
-
-        registry = self._templater_registry(box)
-        prompt = (
-            f"Domain: {styletpl.domain_of(page.url)}\n"
-            f"Verification pages:\n"
-            + "\n".join(f"  [{i + 1}] {s.url}" for i, s in enumerate(samples))
-            + f"\n\nOutline of page 1:\n{plan}"
-            + self._template_revision(box, page)
-        )
-        try:
-            runner = (
-                self._run_openai if self._provider == "openai" else self._run_anthropic
-            )
-            answer = runner(
-                client, [{"role": "user", "content": prompt}], 2000,
-                system=self.TEMPLATE_SYSTEM, registry=registry,
-                steps=MAX_TEMPLATE_STEPS, emit=False,
-            )
-        except Exception as e:
-            term.error(t("sysop.error_template", error=str(e)))
-            return (box.best, box.verified, len(samples)) if box.best else None
-        self._status_done()
-
-        # A measurably passing draft beats the closing text; only if the AI
-        # never called preview() is its answer evaluated at all.
-        if box.best:
-            return box.best, box.verified, len(samples)
-        clean = styletpl.sanitize(answer or "", box.soup)
-        return (clean, 0, len(samples)) if clean else None
+        """The `x` path: learns ONE style template for the page's domain
+        and returns it, or None (see sysop_templater.build_template)."""
+        return sysop_templater.build_template(self, page)
 
     def _template_revision(self, box, page):
-        """'x' on a domain that already has a template is a REVISION, not a
-        fresh start: the existing template goes through the proof run first,
-        so its score becomes the mark to beat, and both it and its result go
-        into the prompt. Whatever still fits the site stays; only what the
-        proof run shows to be broken gets changed. Empty string when there
-        is nothing stored yet."""
-        import json
-
-        from . import styletpl
-
-        stored = styletpl.load(page.url)
-        if not stored:
-            return ""
-        old = dict(stored)
-        # Seeding the toolbox means a new draft only wins when it MEASURES
-        # better — a revision can never come out worse than what we had.
-        report = box.preview(old)
-        self._status(t("sysop.template_revising"))
-        return (
-            "\n\nThis domain ALREADY has a template. Your job is to UPDATE it, "
-            "not to invent a new one: keep every selector that still holds and "
-            "change only what the proof run below shows to be broken (site "
-            "redesign, renamed classes, new banners). Fewer, targeted edits "
-            "are better than a rewrite.\n"
-            f"Current template:\n{json.dumps(old, ensure_ascii=False)}\n"
-            f"Proof run of the current template:\n{report}"
-        )
+        return sysop_templater.template_revision(self, box, page)
 
     def _plain_page(self, html, url):
-        """Baseline build without a template — the yardstick preview()
-        measures a draft against."""
-        return self._build_with(html, url, None)
+        return sysop_templater.plain_page(self, html, url)
 
     def _build_with(self, html, url, template):
-        """Builds a page from raw HTML, optionally with a template. Images
-        stay off: the verification measures text, and re-fetching pictures
-        for every draft would make learning unbearably slow."""
-        from .page import build_page
-
-        try:
-            return build_page(html, url, render_images=False, template=template)
-        except Exception:
-            return None
+        return sysop_templater.build_with(self, html, url, template)
 
     def _templater_registry(self, box):
-        """The learning loop's tools — built in sysop_tools (see
-        build_templater_registry)."""
-        return build_templater_registry(box)
+        return sysop_templater.templater_registry(self, box)
 
     # -- Commands ---------------------------------------------------------
 
