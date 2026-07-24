@@ -299,6 +299,24 @@ def _anthropic_tool_defs(registry):
     ]
 
 
+def _plain_blocks(content):
+    """Reduces SDK response blocks to plain dicts with only the fields the
+    Messages API accepts. Replaying the pydantic objects verbatim carries
+    extra null fields (e.g. citations) that strict gateways such as the
+    Vercel AI gateway reject with 400 'Invalid input'. Empty text blocks
+    are dropped for the same reason."""
+    blocks = []
+    for block in content:
+        btype = getattr(block, "type", None)
+        if btype == "text":
+            if block.text:
+                blocks.append({"type": "text", "text": block.text})
+        elif btype == "tool_use":
+            blocks.append({"type": "tool_use", "id": block.id,
+                           "name": block.name, "input": block.input or {}})
+    return blocks
+
+
 def _openai_tool_defs(registry):
     """Converts the tool registry to OpenAI format (function/parameters)."""
     return [
@@ -1052,7 +1070,8 @@ class SysOp:
         for _ in range(steps):
             resp = self._anthropic_round(client, convo, tools, max_tokens, system, emit)
             self.track(resp)
-            convo.append({"role": "assistant", "content": resp.content})
+            convo.append({"role": "assistant",
+                          "content": _plain_blocks(resp.content)})
             tool_uses = [b for b in resp.content if getattr(b, "type", None) == "tool_use"]
             for block in resp.content:
                 if getattr(block, "type", None) != "text":
