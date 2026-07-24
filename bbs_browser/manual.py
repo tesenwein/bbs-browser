@@ -83,7 +83,7 @@ FEATURES = [
     ("go", "go <text>", KI, t("manual.go_short"),
      t("manual.go_long")),
 
-    ("chat", "chat [nr]", KI, t("manual.chat_short"),
+    ("chat", "chat [nr|neu]", KI, t("manual.chat_short"),
      t("manual.chat_long")),
 
     ("log", "log [nr] | log del <nr> | log clear", KI, t("manual.log_short"),
@@ -136,6 +136,8 @@ FEATURES = [
 
     ("dragon", "dragon", SPIELE, t("manual.dragon_short"),
      t("manual.dragon_long")),
+    ("space", "space", SPIELE, t("manual.space_short"),
+     t("manual.space_long")),
 
     ("?", "? [befehl]", SYSTEM, t("manual.help_short"),
      t("manual.help_long")),

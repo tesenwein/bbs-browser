@@ -11,6 +11,7 @@ STRINGS = {
     "games.menu_snake": {"de": "Snake", "en": "Snake"},
     "games.menu_breakout": {"de": "Bricks", "en": "Bricks"},
     "games.menu_dragon": {"de": "Der Uralte Wurm", "en": "The Ancient Wyrm"},
+    "games.menu_space": {"de": "Sternenkurier", "en": "Star Courier"},
     "games.menu_record": {"de": "Rekord: {score}", "en": "Record: {score}"},
     "games.unknown_game": {"de": "Kein Spiel namens '{name}'", "en": "No game called '{name}'"},
 

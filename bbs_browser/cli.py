@@ -67,7 +67,13 @@ def main():
     from .update import refresh_latest_async
     refresh_latest_async()
 
-    color = GREEN if (args.green or ui.get("color") == "green") else AMBER
+    color_mode = "green" if args.green else ui.get("color")
+    if color_mode == "multi":
+        from .colors import MULTI_TEXT, set_multi
+        set_multi(True)
+        color = MULTI_TEXT
+    else:
+        color = GREEN if color_mode == "green" else AMBER
     term = Terminal(
         color=color,
         fast=args.fast or ui.get("fast", False),

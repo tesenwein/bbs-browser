@@ -84,14 +84,19 @@ def coverage(soup, template):
     sels = [rule["sel"] for rule in template.get("rules") or [] if rule.get("block") != "drop"]
     if template.get("content"):
         sels.append(template["content"])
-    hits = 0
+    hits = total = 0
     for sel in sels:
         try:
-            if soup.select_one(sel) is not None:
-                hits += 1
+            found = soup.select_one(sel) is not None
         except Exception:
+            # A selector soupsieve can't compile says nothing about the fit —
+            # counting it as a miss would push a stored template below the
+            # threshold on every page forever.
             continue
-    return hits, len(sels)
+        total += 1
+        if found:
+            hits += 1
+    return hits, total
 
 
 def _as_soup(html_or_soup):

@@ -710,6 +710,9 @@ def build_page(html, base_url, render_images=True, img_width=60, img_mode="block
     title = soup.title.string.strip() if soup.title and soup.title.string else base_url
     page = Page(base_url, title)
     page.html = html    # fuers spaetere Lernen/Neusetzen mit einem Stilprofil
+    # Remembered on the page so rebuilds from page.html (template brake,
+    # restyle) keep picking the right too-little-text wording.
+    page.js_rendered = js_rendered
     page.logo_urls = logo_urls
     page.forms = form_masks
     meta = soup.find("meta", attrs={"name": "theme-color"})

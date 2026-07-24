@@ -65,6 +65,7 @@ class Terminal:
         self.skip = False     # Ctrl+C pressed: print the rest of the screen immediately
         self.interrupts = 0   # consecutive Ctrl+C at the prompt (2 = hang up)
         self.skippable = False  # dial-in running: a keystroke ends the effects
+        self._status_on = False  # a transient status line is on screen
 
     def check_skip(self):
         """True once the sequence should run without effects.
@@ -94,9 +95,35 @@ class Terminal:
                 return
             time.sleep(min(0.05, remaining))
 
+    # -- Transient status line -------------------------------------------
+    #
+    # One dimmed line that overwrites itself: progress that nobody needs
+    # to keep (tool calls, probing, verify pages) shows only its LATEST
+    # step. Any regular output clears it first, so it never mixes into
+    # the transcript.
+
+    def status(self, text):
+        """Shows `text` on the transient status line (replacing the
+        previous one). Falls back to a normal line without a TTY."""
+        if not sys.stdout.isatty():
+            self.type_out(text, delay=0.001)
+            return
+        sys.stdout.write("\r\x1b[2K" + self.color + DIM
+                         + text[:screen_width() - 1] + RESET)
+        sys.stdout.flush()
+        self._status_on = True
+
+    def status_clear(self):
+        """Wipes the status line (no-op if none is showing)."""
+        if self._status_on:
+            sys.stdout.write("\r\x1b[2K")
+            sys.stdout.flush()
+            self._status_on = False
+
     def emit(self, styled_text):
         """Prints an already-styled line — throttled when baud is set, as if
         it were coming through the modem (ANSI codes cost no time)."""
+        self.status_clear()
         if not self.baud or self.skip:
             print(styled_text)
             return
@@ -146,6 +173,7 @@ class Terminal:
             time.sleep(0.12)
 
     def type_out(self, text, delay=0.006, newline=True):
+        self.status_clear()
         if self.fast or self.skip or delay <= 0:
             print(self.color + text + RESET, end="\n" if newline else "")
             sys.stdout.flush()
@@ -179,6 +207,7 @@ class Terminal:
         would break them apart."""
         from .markdown import render, split_images
 
+        self.status_clear()
         lines = []
         for segment in split_images(text) if image else [("text", text)]:
             if segment[0] == "text":
@@ -212,16 +241,22 @@ class Terminal:
         label = self.color + BOLD + t("render.image_label", alt=alt or url) + RESET
         if not art:
             return [label]
-        if art.get("luma"):
+        if art.get("rgb"):
+            from .images import rgb_halfblock_lines
+
+            body = rgb_halfblock_lines(art["rgb"])
+        elif art.get("luma"):
             body = halfblock_lines(art["luma"], self.color)
         else:
             body = [self.color + DIM + line[:screen_width()] for line in art["lines"]]
         return [label] + body + [""]
 
     def line(self, char="=", n=None):
+        self.status_clear()
         print(self.color + char * (screen_width() if n is None else n) + RESET)
 
     def rule(self, label="", char="─"):
+        self.status_clear()
         if label:
             deco = f"{char * 3}[ {label} ]"
             print(self.color + deco + char * max(0, screen_width() - len(deco)) + RESET)
@@ -229,6 +264,7 @@ class Terminal:
             print(self.color + char * screen_width() + RESET)
 
     def box(self, rows):
+        self.status_clear()
         inner = screen_width() - 4
         print(self.color + "╔" + "═" * (screen_width() - 2) + "╗" + RESET)
         for row in rows:
@@ -236,14 +272,17 @@ class Terminal:
         print(self.color + "╚" + "═" * (screen_width() - 2) + "╝" + RESET)
 
     def clear(self):
+        self._status_on = False  # the screen wipe takes the line with it
         print(CLEAR, end="")
 
     def status_bar(self, text):
+        self.status_clear()
         print(self.color + INVERT + text[:screen_width()].ljust(screen_width()) + RESET)
 
     def prompt(self, label=None):
         if label is None:
             label = t("terminal.default_prompt")
+        self.status_clear()
         self.skip = False  # next screen is allowed to animate again
         try:
             text = input(self.color + BOLD + label + RESET + self.color).strip()

@@ -495,12 +495,19 @@ def _dragon(term):
     run(term)
 
 
+def _space(term):
+    """The trading door lives in space.py — this is just the entry point."""
+    from .space import run
+    run(term)
+
+
 GAMES = [
     ("paddle", "games.menu_pong", paddle),
     ("stacker", "games.menu_tetris", stacker),
     ("snake", "games.menu_snake", snake),
     ("bricks", "games.menu_breakout", bricks),
     ("dragon", "games.menu_dragon", _dragon),
+    ("space", "games.menu_space", _space),
 ]
 
 

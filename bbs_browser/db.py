@@ -217,17 +217,55 @@ def chat_transcript(channel, limit=50):
     ]
 
 
-def chat_channels():
-    """All channels with line count and last activity, newest first."""
+def chat_channels(prefix=None):
+    """All channels with line count and last activity, newest first.
+
+    With `prefix`, only channels named exactly `prefix` or starting with
+    `prefix:` are returned (e.g. all SysOp chats)."""
     rows = connect().execute(
         "SELECT channel, COUNT(*) AS n, MAX(ts) AS last FROM chat_log "
         "GROUP BY channel ORDER BY last DESC"
     ).fetchall()
-    return [
+    entries = [
         {"channel": r["channel"], "count": r["n"], "last": r["last"],
          "title": chat_title(r["channel"])}
         for r in rows
     ]
+    if prefix:
+        entries = [e for e in entries
+                   if e["channel"] == prefix or e["channel"].startswith(prefix + ":")]
+    return entries
+
+
+def new_chat_channel(prefix):
+    """A fresh, never-used channel name 'prefix:N' (counter in meta)."""
+    conn = connect()
+    key = "chat_seq:" + prefix
+    row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+    try:
+        n = int(row["value"]) + 1 if row else 2
+    except (TypeError, ValueError):
+        n = 2
+    conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)", (key, str(n)))
+    conn.commit()
+    return f"{prefix}:{n}"
+
+
+def active_chat():
+    """The channel of the most recently used SysOp chat ("" if none)."""
+    row = connect().execute(
+        "SELECT value FROM meta WHERE key = 'chat_active'"
+    ).fetchone()
+    return row["value"] if row else ""
+
+
+def set_active_chat(channel):
+    conn = connect()
+    conn.execute(
+        "INSERT OR REPLACE INTO meta (key, value) VALUES ('chat_active', ?)",
+        (channel,),
+    )
+    conn.commit()
 
 
 def _title_key(channel):
@@ -264,6 +302,7 @@ def chat_clear(channel=None):
     else:
         conn.execute("DELETE FROM chat_log")
         conn.execute("DELETE FROM meta WHERE key LIKE 'chat_title:%'")
+        conn.execute("DELETE FROM meta WHERE key LIKE 'chat_seq:%' OR key = 'chat_active'")
     conn.commit()
 
 

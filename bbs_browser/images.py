@@ -20,7 +20,7 @@ from io import BytesIO
 import requests
 from PIL import Image, ImageFilter, ImageOps
 
-from .colors import phosphor_rgb
+from .colors import multi_active, phosphor_rgb
 from .constants import (
     ASCII_RAMP, LOGO_MAX_LINES, LOGO_RAMP, LOGO_WIDTH, MAX_IMAGE_BYTES,
     RESET, USER_AGENT,
@@ -103,8 +103,8 @@ def _work_box(width, rows_per_char=1):
     return (width * WORK_FACTOR, round(width * ASPECT * rows_per_char) * WORK_FACTOR)
 
 
-def _load(img_bytes, box=None):
-    """Bytes -> (upright grayscale image, original size), or (None, None).
+def _load(img_bytes, box=None, gray=True):
+    """Bytes -> (upright grayscale or RGB image, original size), or (None, None).
 
     Downscales to the working size right at load time: running autocontrast,
     gamma, and an unsharp mask on a 4000-pixel original costs a multiple of
@@ -117,10 +117,10 @@ def _load(img_bytes, box=None):
         img = Image.open(BytesIO(img_bytes))
         orig_size = img.size
         if box:
-            img.draft("L", box)          # JPEG only, no effect otherwise
+            img.draft("L" if gray else "RGB", box)   # JPEG only, no effect otherwise
         img.load()
         img = ImageOps.exif_transpose(img) or img
-        img = _flatten(img).convert("L")
+        img = _flatten(img).convert("L" if gray else "RGB")
         if box and (img.size[0] > box[0] or img.size[1] > box[1]):
             img.thumbnail(box, Image.LANCZOS)
     except Exception:
@@ -129,8 +129,11 @@ def _load(img_bytes, box=None):
 
 
 def _enhance(img, sharpen=True):
-    img = ImageOps.autocontrast(img, cutoff=AUTOCONTRAST_CUTOFF)
-    img = img.point(_GAMMA_LUT)
+    # preserve_tone keeps the hues of an RGB image intact — per-channel
+    # autocontrast would tint shadows and highlights.
+    img = ImageOps.autocontrast(img, cutoff=AUTOCONTRAST_CUTOFF,
+                                preserve_tone=img.mode == "RGB")
+    img = img.point(_GAMMA_LUT * len(img.getbands()))
     # Sharpen before the heavy downscale: otherwise the edges blur, and
     # they're later the only cue for a character's shape.
     return img.filter(_UNSHARP) if sharpen else img
@@ -186,7 +189,8 @@ def _ascii_lines(img, width, ramp=ASCII_RAMP, dither=True):
 def _luma_rows(img, width):
     """Half-block mode: two image rows per text line, i.e. double the
     vertical resolution. Returns raw luminance values — coloring happens
-    only at render time, once the page's phosphor tone is known."""
+    only at render time, once the page's phosphor tone is known. Fed an
+    RGB image, the rows carry (r, g, b) tuples instead (multi-color mode)."""
     img = _scaled(img, width, rows_per_char=2)
     w, h = img.size
     h -= h % 2                      # an odd last row would have no partner
@@ -323,13 +327,73 @@ def _tint(rgb, level):
     return tuple(int(c * level / 255) for c in rgb)
 
 
+# -- Full-color half-blocks (multi-color mode) -----------------------------
+
+def rgb_halfblock_lines(rows):
+    """RGB grid -> ▀ lines in the image's real colors. Same folding as
+    halfblock_lines, but no phosphor tint: multi-color mode shows the
+    picture as the wire delivered it."""
+    if not _truecolor():
+        return _rgb_halfblock_256(rows)
+    out = []
+    for y in range(0, len(rows) - 1, 2):
+        parts, prev = [], None
+        for top, bottom in zip(rows[y], rows[y + 1]):
+            # Quantize each channel to 32 levels — imperceptible, but far
+            # fewer escape-sequence changes per line.
+            key = tuple(c >> 3 for c in (*top, *bottom))
+            if key != prev:
+                fr, fg, fb, br, bg, bb = (k * 8 + 4 for k in key)
+                parts.append(f"\033[38;2;{fr};{fg};{fb}m\033[48;2;{br};{bg};{bb}m")
+                prev = key
+            parts.append(HALF_BLOCK)
+        out.append("".join(parts) + RESET)
+    return out
+
+
+_COLOR256_CACHE = {}
+
+
+def _color256(rgb):
+    """Nearest 256-palette index for an RGB pixel: near-neutral tones go to
+    the 24-step gray ramp (much finer than the cube's 6 levels per channel),
+    everything else to the 6x6x6 color cube."""
+    key = tuple(c >> 3 for c in rgb)
+    if key not in _COLOR256_CACHE:
+        if max(rgb) - min(rgb) < 12:
+            gray = min(23, max(0, round((_luminance(rgb) - 8) / 10)))
+            idx = 232 + gray
+        else:
+            steps = tuple(min(range(6), key=lambda i, c=c: abs(_CUBE_STEPS[i] - c))
+                          for c in rgb)
+            idx = 16 + 36 * steps[0] + 6 * steps[1] + steps[2]
+        _COLOR256_CACHE[key] = idx
+    return _COLOR256_CACHE[key]
+
+
+def _rgb_halfblock_256(rows):
+    out = []
+    for y in range(0, len(rows) - 1, 2):
+        parts, prev = [], None
+        for top, bottom in zip(rows[y], rows[y + 1]):
+            key = (_color256(top), _color256(bottom))
+            if key != prev:
+                parts.append(f"\033[38;5;{key[0]}m\033[48;5;{key[1]}m")
+                prev = key
+            parts.append(HALF_BLOCK)
+        out.append("".join(parts) + RESET)
+    return out
+
+
 # -- Public interface -----------------------------------------------------
 
-def render_image(img_bytes, width=60, mode="blocks", max_lines=None):
+def render_image(img_bytes, width=60, mode="blocks", max_lines=None, color=None):
     """Image bytes -> block payload for the page, or None.
 
     ascii  -> {"lines": [...]}
     blocks -> {"luma": [[...]]} — coloring happens later, at render time
+    blocks + color -> {"rgb": [[...]]} — real image colors (multi-color
+    mode); color=None means "whatever mode the terminal is running in"
 
     max_lines caps the image height in text lines: a tall image at full
     width would otherwise be taller than a screen page, and the MORE prompt
@@ -338,9 +402,14 @@ def render_image(img_bytes, width=60, mode="blocks", max_lines=None):
     the line count scales linearly with width because the aspect ratio is
     fixed.
     """
+    if color is None:
+        color = multi_active()
+    color = color and mode == "blocks"
     rows_per_char = 2 if mode == "blocks" else 1
-    img, orig_size = _load(img_bytes, box=_work_box(width, rows_per_char))
-    if img is None or not _worth_showing(img, orig_size):
+    img, orig_size = _load(img_bytes, box=_work_box(width, rows_per_char),
+                           gray=not color)
+    if img is None or not _worth_showing(img.convert("L") if color else img,
+                                         orig_size):
         return None
     img = _enhance(img)
     if max_lines:
@@ -353,7 +422,9 @@ def render_image(img_bytes, width=60, mode="blocks", max_lines=None):
             width = max(IMG_MIN_WIDTH, int(width * max_lines / text_lines))
     if mode == "blocks":
         rows = _luma_rows(img, width)
-        return {"luma": rows} if rows else None
+        if not rows:
+            return None
+        return {"rgb": rows} if color else {"luma": rows}
     return {"lines": _ascii_lines(img, width)}
 
 
@@ -381,12 +452,14 @@ def fetch_image(url, width=60, mode="blocks", max_lines=None):
     in-process: a page gets built twice on the style-profile path (once
     plain, once profiled) — without the cache each image would be fetched
     over the wire twice for that."""
-    key = (url, width, mode, max_lines)
+    color = mode == "blocks" and multi_active()
+    key = (url, width, mode, max_lines, color)
     if key in _RENDER_CACHE:
         return _RENDER_CACHE[key]
     try:
         data = _get(url)
-        art = render_image(data, width=width, mode=mode, max_lines=max_lines) if data else None
+        art = (render_image(data, width=width, mode=mode, max_lines=max_lines,
+                            color=color) if data else None)
     except Exception:
         return None
     if len(_RENDER_CACHE) >= _RENDER_CACHE_MAX:
@@ -397,13 +470,11 @@ def fetch_image(url, width=60, mode="blocks", max_lines=None):
 
 # -- Logos ------------------------------------------------------------------
 
-def _autocrop(img):
-    """Crop away margins with no content. Logo files almost always come
+def _crop_box(img):
+    """Bounding box of the actual content. Logo files almost always come
     with generous whitespace around them — left uncropped, the header
     would show a postage-stamp-sized logo in a lot of nothing."""
-    mask = img.point(lambda p: 255 if p > 40 else 0)
-    box = mask.getbbox()
-    return img.crop(box) if box else img
+    return img.point(lambda p: 255 if p > 40 else 0).getbbox()
 
 
 def _ink_mask(img_bytes, box):
@@ -457,7 +528,8 @@ def _structure(mask):
     return sum(data) / len(data)
 
 
-def render_logo(img_bytes, width=LOGO_WIDTH, max_lines=LOGO_MAX_LINES, mode="blocks"):
+def render_logo(img_bytes, width=LOGO_WIDTH, max_lines=LOGO_MAX_LINES, mode="blocks",
+                color=False):
     """Logo -> payload for the page header, or None.
 
     ascii  -> {"lines": [...]}
@@ -466,21 +538,37 @@ def render_logo(img_bytes, width=LOGO_WIDTH, max_lines=LOGO_MAX_LINES, mode="blo
               A wordmark's legibility hinges exactly on this: over ten
               lines, twenty image rows are the difference between readable
               text and a blob.
+    blocks + color -> {"rgb": [[...]]} — multi-color mode. The ink mask
+              still decides the brightness (that's what keeps a mark legible
+              on the dark screen), but hue and saturation come from the RGB
+              original: python.org's blue and yellow survive, black ink
+              simply stays neutral.
 
-    The logo pre-processing stays the same in both cases, which is why this
+    The logo pre-processing stays the same in all cases, which is why this
     doesn't just call render_image: a mark needs the ink mask (light =
     mark), cropping down to that mark, and the ink check that filters out
     meaningless silhouettes."""
     # More generous working size than for a photo: only after cropping to
     # the mark itself is it clear how much of the image actually remains.
-    img = _ink_mask(img_bytes, _work_box(width * 2, 2))
+    box = _work_box(width * 2, 2)
+    img = _ink_mask(img_bytes, box)
     if img is None:
         return None
-    img = _autocrop(img)
+    rgb_img = None
+    if color and mode == "blocks":
+        rgb_img, _ = _load(img_bytes, box=box, gray=False)
+        # The mask went through the same load path — differing sizes would
+        # mean the pixels no longer line up, so better mono than miscolored.
+        if rgb_img is not None and rgb_img.size != img.size:
+            rgb_img = None
+    crop = _crop_box(img)
+    if crop:
+        img = img.crop(crop)
+        if rgb_img is not None:
+            rgb_img = rgb_img.crop(crop)
     w, h = img.size
     if not w or not h:
         return None
-    rows_per_char = 2 if mode == "blocks" else 1
     # Height caps the width: a square logo at full width would otherwise
     # be taller than the whole banner.
     lines_at_full = max(1, round(h / w * width * ASPECT))
@@ -505,7 +593,28 @@ def render_logo(img_bytes, width=LOGO_WIDTH, max_lines=LOGO_MAX_LINES, mode="blo
     lit = sum(1 for row in rows for p in row if p > LOGO_INK_LEVEL)
     if not _logo_has_substance(lit, len(rows) * len(rows[0])):
         return None
-    return {"luma": _trim_blank_rows(rows, max_lines)}
+    a, b = _trim_span(rows)
+    rows = rows[a:b][:max_lines * 2]
+    if rgb_img is not None:
+        rgb_rows = _luma_rows(rgb_img, width)
+        if len(rgb_rows) >= b:
+            return {"rgb": _colorize_rows(rows, rgb_rows[a:b][:max_lines * 2])}
+    return {"luma": rows}
+
+
+def _colorize_rows(luma_rows, rgb_rows):
+    """Keys the ink mask's brightness onto the original's hue/saturation:
+    per pixel HSV(h_orig, s_orig, v_mask). Colorless ink (black wordmark)
+    gets s=0 and stays a neutral glyph."""
+    out = []
+    for lr, rr in zip(luma_rows, rgb_rows):
+        row = []
+        for v, (r, g, b) in zip(lr, rr):
+            h, s, _ = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+            cr, cg, cb = colorsys.hsv_to_rgb(h, s, v / 255)
+            row.append((int(cr * 255 + 0.5), int(cg * 255 + 0.5), int(cb * 255 + 0.5)))
+        out.append(row)
+    return out
 
 
 def _logo_has_substance(ink, area):
@@ -526,17 +635,20 @@ def _trim_blank(lines, max_lines):
     return lines[:max_lines]
 
 
-def _trim_blank_rows(rows, max_lines):
-    """Same thing for the luminance grid — but always in pairs, since two
-    image rows share one text line."""
+def _trim_span(rows):
+    """Same thing for the luminance grid, as a (start, end) span — but
+    always in pairs, since two image rows share one text line. A span
+    instead of in-place trimming, so the color grid running alongside in
+    multi-color mode can be cut identically."""
     def dark(row):
         return all(p <= LOGO_INK_LEVEL for p in row)
 
-    while len(rows) >= 2 and dark(rows[0]) and dark(rows[1]):
-        del rows[:2]
-    while len(rows) >= 2 and dark(rows[-1]) and dark(rows[-2]):
-        del rows[-2:]
-    return rows[:max_lines * 2]
+    a, b = 0, len(rows)
+    while b - a >= 2 and dark(rows[a]) and dark(rows[a + 1]):
+        a += 2
+    while b - a >= 2 and dark(rows[b - 1]) and dark(rows[b - 2]):
+        b -= 2
+    return a, b
 
 
 def _border_is_bright(img):
@@ -550,9 +662,11 @@ def _border_is_bright(img):
     return sum(edge) / len(edge) > 127
 
 
-def fetch_logo(url, width=LOGO_WIDTH, max_lines=LOGO_MAX_LINES, mode="blocks"):
+def fetch_logo(url, width=LOGO_WIDTH, max_lines=LOGO_MAX_LINES, mode="blocks",
+               color=False):
     try:
         data = _get(url)
-        return render_logo(data, width=width, max_lines=max_lines, mode=mode) if data else None
+        return (render_logo(data, width=width, max_lines=max_lines, mode=mode,
+                            color=color) if data else None)
     except Exception:
         return None

@@ -114,7 +114,8 @@ class Browser:
                 try:
                     from .page import build_page
                     plain = build_page(page.html, page.url, self.render_images,
-                                       self.img_width, self.img_mode)
+                                       self.img_width, self.img_mode,
+                                       js_rendered=getattr(page, "js_rendered", None))
                 except Exception:
                     plain = None
                 if plain is not None and not plain.low_text:
@@ -124,10 +125,12 @@ class Browser:
             if getattr(page, "template_used", False):
                 term.type_out(t("styletpl.in_use",
                                 domain=styletpl.domain_of(page.url)), delay=0.002)
-            elif template and not braked:
+            elif template and not braked and not page.low_text and styletpl.eligible(page):
                 # A template exists for this domain but didn't grip this page
                 # — say so instead of leaving the caller wondering why the
-                # page looks plain.
+                # page looks plain. Not on thin pages (their own hint already
+                # explains more) and not on pages without a document (Firecrawl
+                # markdown) where the template never had a chance.
                 term.error(t("styletpl.no_grip",
                              domain=styletpl.domain_of(page.url)))
             # JS-heavy page and Firecrawl in MCP mode? SysOp scrapes it afterward.
@@ -201,7 +204,8 @@ class Browser:
             return None
         try:
             fresh = build_page(page.html, page.url, self.render_images,
-                               self.img_width, self.img_mode, template)
+                               self.img_width, self.img_mode, template,
+                               js_rendered=getattr(page, "js_rendered", None))
         except Exception:
             return None
         # Everything not coming out of the blocks is taken from the original
