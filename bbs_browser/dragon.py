@@ -10,14 +10,17 @@ hanging up. Fights against other callers use the persona pool from
 users.py: whoever has been online on the mailbox can be run into in the
 forest.
 
+The shared door-game skeleton (fight loop, shop counter, day rollover,
+main menu) lives in rpg.py — this file keeps the rules that make the
+forest the forest.
+
 Unlike Paddle and Stacker, this game doesn't need a raw terminal — it's a
 text door like back in the day, so it also works through a pipe.
 """
 
 import random
-from datetime import date
 
-from . import lightbar
+from . import lightbar, rpg
 from .i18n import t
 from .state import load_section, save_section
 
@@ -64,17 +67,7 @@ def defense(hero):
 
 
 def load_hero():
-    """Load the character and, if a day has passed since the last visit,
-    open a new game day: fights are restored, the fallen rise again."""
-    hero = {**_fresh(), **(load_section(SECTION) or {})}
-    today = date.today().isoformat()
-    if hero.get("day") != today:
-        hero["day"] = today
-        hero["fights"] = FIGHTS_PER_DAY
-        hero["alive"] = True
-        hero["hp"] = max_hp(hero)
-    hero["hp"] = min(hero["hp"], max_hp(hero))
-    return hero
+    return rpg.load_state(CFG)
 
 
 def save_hero(hero):
@@ -124,14 +117,11 @@ def master_for(level):
 def _caller_foe(level):
     """Another caller as an opponent — the personas from users.py. Without a
     pool (no AI key, nobody ever online) there is no duel opponent."""
-    pool = (load_section("users") or {}).get("pool") or []
-    handles = [str(p.get("handle", "")).strip() for p in pool if isinstance(p, dict)]
-    handles = [h for h in handles if h]
-    if not handles:
+    picked = rpg.caller_handle()
+    if not picked:
         return None
-    handle = random.choice(handles)
     # Derive stats from the handle: the same caller is always equally strong.
-    seed = sum(ord(c) for c in handle)
+    handle, seed = picked
     return {
         "name": handle,
         "hp": 20 + level * 11 + seed % 30,
@@ -145,82 +135,20 @@ def _caller_foe(level):
 # -- Combat -----------------------------------------------------------------
 
 def _bar(term, hero, foe):
-    term.type_out(
-        t("dragon.combat_status", you=hero["hp"], max=max_hp(hero),
-          foe=foe["name"], foe_hp=max(foe["hp"], 0)), delay=0)
+    rpg.bar(term, CFG, hero, foe)
 
 
 def fight(term, hero, foe, can_flee=True):
     """A fight until it's decided. Returns 'win', 'flee', or 'dead'."""
-    term.rule(t("dragon.combat_title", foe=foe["name"]))
-    term.type_out(t("dragon.combat_intro", foe=foe["name"]), delay=0.004)
-    while True:
-        _bar(term, hero, foe)
-        choice = (term.prompt(t("dragon.combat_prompt")) or "").strip().lower()[:1]
-        if choice in ("f", "l") and can_flee:
-            if random.random() < 0.55:
-                term.type_out(t("dragon.flee_ok"), delay=0.004)
-                return "flee"
-            term.type_out(t("dragon.flee_fail"), delay=0.004)
-        elif choice in ("f", "l"):
-            term.type_out(t("dragon.flee_blocked"), delay=0.004)
-            continue
-        elif choice == "h":
-            if hero["potions"] <= 0:
-                term.type_out(t("dragon.no_potion"), delay=0.003)
-                continue
-            hero["potions"] -= 1
-            healed = min(POTION_HEAL, max_hp(hero) - hero["hp"])
-            hero["hp"] += healed
-            term.type_out(t("dragon.potion_used", hp=healed, left=hero["potions"]), delay=0.004)
-        elif choice == "s":
-            show_stats(term, hero)
-            continue
-        else:
-            # Everything else is an attack — when in doubt, strike.
-            dmg = random.randint(attack_power(hero) // 2, attack_power(hero)) + 1
-            crit = random.random() < 0.12
-            if crit:
-                dmg *= 2
-            foe["hp"] -= dmg
-            term.type_out(
-                t("dragon.hit_crit" if crit else "dragon.hit", foe=foe["name"], dmg=dmg),
-                delay=0.004)
-            if foe["hp"] <= 0:
-                term.type_out(t("dragon.foe_down", foe=foe["name"]), delay=0.005)
-                term.beep()
-                return "win"
-
-        back = max(1, random.randint(foe["dmg"] // 2, foe["dmg"]) - defense(hero) // 2)
-        hero["hp"] -= back
-        term.type_out(t("dragon.foe_hit", foe=foe["name"], dmg=back), delay=0.004)
-        if hero["hp"] <= 0:
-            hero["hp"] = 0
-            return "dead"
+    return rpg.fight(term, CFG, hero, foe, can_flee)
 
 
 def _died(term, hero, foe):
-    hero["alive"] = False
-    hero["deaths"] += 1
-    lost, hero["gold"] = hero["gold"], 0
-    hero["fights"] = 0
-    save_hero(hero)
-    term.rule(t("dragon.dead_title"))
-    term.type_out(t("dragon.dead_msg", foe=foe["name"], gold=lost), delay=0.005)
-    term.type_out(t("dragon.dead_hint"), delay=0.003)
-    term.beep(2)
-    term.pause()
+    rpg.died(term, CFG, hero, foe)
 
 
 def _won(term, hero, foe):
-    hero["gold"] += foe["gold"]
-    hero["exp"] += foe["exp"]
-    hero["kills"] += 1
-    if foe.get("caller"):
-        hero["duels"] += 1
-    term.type_out(t("dragon.spoils", gold=foe["gold"], exp=foe["exp"]), delay=0.004)
-    save_hero(hero)
-    term.pause()
+    rpg.won(term, CFG, hero, foe)
 
 
 # -- The locations --------------------------------------------------------------
@@ -282,41 +210,7 @@ def master(term, hero):
 def _shop(term, hero, kind):
     """Weapon and armor shop — same counter, two goods baskets."""
     table = WEAPONS if kind == "weapon" else ARMORS
-    slot = "weapon" if kind == "weapon" else "armor"
-
-    def rows():
-        out = []
-        for i, (price, power) in enumerate(table):
-            name = t(f"dragon.{kind}_{i}")
-            if i == hero[slot]:
-                value = t("dragon.shop_owned")
-            elif i < hero[slot]:
-                value = t("dragon.shop_old")
-            else:
-                value = t("dragon.shop_price", price=price, power=power)
-            out.append((str(i + 1), name, value))
-        return out
-
-    while True:
-        choice = lightbar.menu(
-            term, t(f"dragon.shop_title_{kind}"), rows,
-            subtitle=t("dragon.shop_subtitle", gold=hero["gold"]))
-        if not choice or not choice.isdigit():
-            return
-        idx = int(choice) - 1
-        if not 0 <= idx < len(table):
-            continue
-        price = table[idx][0]
-        if idx <= hero[slot]:
-            term.type_out(t("dragon.shop_have_better"), delay=0.003)
-            continue
-        if hero["gold"] < price:
-            term.type_out(t("dragon.shop_too_poor", missing=price - hero["gold"]), delay=0.004)
-            continue
-        hero["gold"] -= price
-        hero[slot] = idx
-        save_hero(hero)
-        term.type_out(t("dragon.shop_bought", name=t(f"dragon.{kind}_{idx}")), delay=0.004)
+    rpg.shop(term, CFG, hero, kind, table, kind)
 
 
 def tavern(term, hero):
@@ -434,14 +328,51 @@ def _exp_line(hero):
     return t("dragon.exp_of", exp=hero["exp"], need=EXP_NEEDED[hero["level"]])
 
 
+# -- The engine wiring -------------------------------------------------------
+
+CFG = {
+    "section": SECTION,
+    "prefix": "dragon",
+    "fresh": _fresh,
+    "hp": "hp",
+    "energy": "fights",
+    "energy_per_day": FIGHTS_PER_DAY,
+    "max_hp": max_hp,
+    "attack": attack_power,
+    "defense": defense,
+    "currency": "gold",
+    "loot": ("gold", "exp"),
+    "flee_keys": ("f", "l"),
+    "heal_key": "h",
+    "heal_item": "potions",
+    "heal_amount": POTION_HEAL,
+    "heal_kwarg": "hp",
+    "heal_missing": "dragon.no_potion",
+    "heal_used": "dragon.potion_used",
+    "death_title": "dragon.dead_title",
+    "death_msg": "dragon.dead_msg",
+    "death_hint": "dragon.dead_hint",
+    "stats": show_stats,
+    "save": save_hero,
+    "shop": {
+        "owned": "dragon.shop_owned",
+        "old": "dragon.shop_old",
+        "price": "dragon.shop_price",
+        "have_better": "dragon.shop_have_better",
+        "too_poor": "dragon.shop_too_poor",
+        "bought": "dragon.shop_bought",
+        "title": "dragon.shop_title_{kind}",
+        "subtitle": "dragon.shop_subtitle",
+    },
+}
+
+
 # -- The village square ---------------------------------------------------------
 
 def run(term):
     """Entry point from the arcade: the village square with all locations."""
     hero = load_hero()
     save_hero(hero)
-    term.rule(t("dragon.title"))
-    term.type_out(t("dragon.welcome"), delay=0.005)
 
     def rows():
         state = t("dragon.state_dead") if not hero["alive"] else \
@@ -458,29 +389,15 @@ def run(term):
             ("7", t("dragon.menu_stats"), state),
         ]
 
-    at = "1"
-    while True:
-        choice = lightbar.menu(term, t("dragon.title"), rows,
-                               subtitle=t("dragon.menu_subtitle",
-                                          level=hero["level"], gold=hero["gold"]),
-                               start=at)
-        if not choice or choice in ("q", "0"):
-            save_hero(hero)
-            return
-        at = choice
-        if choice == "1":
-            forest(term, hero)
-        elif choice == "2":
-            master(term, hero)
-        elif choice == "3":
-            red_dragon(term, hero)
-        elif choice == "4":
-            _shop(term, hero, "weapon")
-        elif choice == "5":
-            _shop(term, hero, "armor")
-        elif choice == "6":
-            tavern(term, hero)
-        elif choice == "7":
-            show_stats(term, hero)
-        else:
-            term.error(t("dragon.unknown_choice"))
+    rpg.run_loop(
+        term, CFG, hero, rows,
+        lambda: t("dragon.menu_subtitle", level=hero["level"], gold=hero["gold"]),
+        {
+            "1": forest,
+            "2": master,
+            "3": red_dragon,
+            "4": lambda tm, h: _shop(tm, h, "weapon"),
+            "5": lambda tm, h: _shop(tm, h, "armor"),
+            "6": tavern,
+            "7": show_stats,
+        })
