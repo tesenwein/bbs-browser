@@ -12,14 +12,17 @@ The ship lives in the "space" section of the database and survives
 hanging up. Pirate captains are drawn from the persona pool in users.py:
 whoever has been online on the mailbox can jump your freighter.
 
+The shared door-game skeleton (fight loop, dock counter, day rollover,
+main menu) lives in rpg.py — this file keeps the rules that make the
+lanes the lanes.
+
 Like dragon.py this is a plain text door — no raw terminal needed, so it
 also works through a pipe.
 """
 
 import random
-from datetime import date
 
-from . import lightbar
+from . import lightbar, rpg
 from .i18n import t
 from .state import load_section, save_section
 
@@ -82,19 +85,12 @@ def net_worth(ship):
     return ship["credits"] + ship["bank"] + goods
 
 
-def load_ship():
-    """Load the ship and, if a day has passed since the last docking,
-    open a new game day: the tanks are full, the wrecked fly again."""
-    ship = {**_fresh(), **(load_section(SECTION) or {})}
+def _normalize(ship):
     ship["cargo"] = {g: int(ship["cargo"].get(g, 0)) for g in GOODS}
-    today = date.today().isoformat()
-    if ship.get("day") != today:
-        ship["day"] = today
-        ship["fuel"] = WARPS_PER_DAY
-        ship["alive"] = True
-        ship["hull"] = max_hull(ship)
-    ship["hull"] = min(ship["hull"], max_hull(ship))
-    return ship
+
+
+def load_ship():
+    return rpg.load_state(CFG)
 
 
 def save_ship(ship):
@@ -149,14 +145,11 @@ def pirate_for(ship):
 def _caller_pirate(ship):
     """Another caller as a pirate captain — the personas from users.py.
     Without a pool (no AI key, nobody ever online) the lanes stay anonymous."""
-    pool = (load_section("users") or {}).get("pool") or []
-    handles = [str(p.get("handle", "")).strip() for p in pool if isinstance(p, dict)]
-    handles = [h for h in handles if h]
-    if not handles:
+    picked = rpg.caller_handle()
+    if not picked:
         return None
-    handle = random.choice(handles)
     # Derive stats from the handle: the same captain is always equally strong.
-    seed = sum(ord(c) for c in handle)
+    handle, seed = picked
     p = _power(ship)
     return {
         "name": handle,
@@ -170,84 +163,28 @@ def _caller_pirate(ship):
 # -- Combat -----------------------------------------------------------------
 
 def _bar(term, ship, foe):
-    term.type_out(
-        t("space.combat_status", you=ship["hull"], max=max_hull(ship),
-          foe=foe["name"], foe_hp=max(foe["hp"], 0)), delay=0)
+    rpg.bar(term, CFG, ship, foe)
 
 
 def fight(term, ship, foe, can_flee=True):
     """A fight until it's decided. Returns 'win', 'flee', or 'dead'."""
-    term.rule(t("space.combat_title", foe=foe["name"]))
-    term.type_out(t("space.combat_intro", foe=foe["name"]), delay=0.004)
-    while True:
-        _bar(term, ship, foe)
-        choice = (term.prompt(t("space.combat_prompt")) or "").strip().lower()[:1]
-        if choice == "w" and can_flee:
-            if random.random() < 0.55:
-                term.type_out(t("space.flee_ok"), delay=0.004)
-                return "flee"
-            term.type_out(t("space.flee_fail"), delay=0.004)
-        elif choice == "w":
-            term.type_out(t("space.flee_blocked"), delay=0.004)
-            continue
-        elif choice == "n":
-            if ship["kits"] <= 0:
-                term.type_out(t("space.no_kit"), delay=0.003)
-                continue
-            ship["kits"] -= 1
-            fixed = min(KIT_REPAIR, max_hull(ship) - ship["hull"])
-            ship["hull"] += fixed
-            term.type_out(t("space.kit_used", hull=fixed, left=ship["kits"]), delay=0.004)
-        elif choice == "s":
-            show_log(term, ship)
-            continue
-        else:
-            # Everything else fires the lasers — when in doubt, shoot.
-            dmg = random.randint(laser_power(ship) // 2, laser_power(ship)) + 1
-            crit = random.random() < 0.12
-            if crit:
-                dmg *= 2
-            foe["hp"] -= dmg
-            term.type_out(
-                t("space.hit_crit" if crit else "space.hit", foe=foe["name"], dmg=dmg),
-                delay=0.004)
-            if foe["hp"] <= 0:
-                term.type_out(t("space.foe_down", foe=foe["name"]), delay=0.005)
-                term.beep()
-                return "win"
+    return rpg.fight(term, CFG, ship, foe, can_flee)
 
-        back = max(1, random.randint(foe["dmg"] // 2, foe["dmg"]) - absorption(ship) // 2)
-        ship["hull"] -= back
-        term.type_out(t("space.foe_hit", foe=foe["name"], dmg=back), delay=0.004)
-        if ship["hull"] <= 0:
-            ship["hull"] = 0
-            return "dead"
+
+def _jettison(ship):
+    """The escape pod saves the pilot, not the freight: the cargo stays
+    with the wreck."""
+    ship["cargo"] = {g: 0 for g in GOODS}
 
 
 def _wrecked(term, ship, foe):
     """The escape pod saves the pilot, not the freight: cargo and cash on
     hand stay with the wreck, the bank account survives."""
-    ship["alive"] = False
-    ship["deaths"] += 1
-    lost, ship["credits"] = ship["credits"], 0
-    ship["cargo"] = {g: 0 for g in GOODS}
-    ship["fuel"] = 0
-    save_ship(ship)
-    term.rule(t("space.wreck_title"))
-    term.type_out(t("space.wreck_msg", foe=foe["name"], credits=lost), delay=0.005)
-    term.type_out(t("space.wreck_hint"), delay=0.003)
-    term.beep(2)
-    term.pause()
+    rpg.died(term, CFG, ship, foe)
 
 
 def _won(term, ship, foe):
-    ship["credits"] += foe["credits"]
-    ship["kills"] += 1
-    if foe.get("caller"):
-        ship["duels"] += 1
-    term.type_out(t("space.spoils", credits=foe["credits"]), delay=0.004)
-    save_ship(ship)
-    term.pause()
+    rpg.won(term, CFG, ship, foe)
 
 
 # -- The lanes --------------------------------------------------------------
@@ -347,46 +284,16 @@ def trade(term, ship):
 
 # -- The dock ---------------------------------------------------------------
 
+def _refit(ship, slot):
+    """A smaller shield also means a smaller ceiling — trim the hull."""
+    if slot == "shield":
+        ship["hull"] = min(ship["hull"], max_hull(ship))
+
+
 def _outfitter(term, ship, kind):
     """Laser and shield dock — same counter, two racks."""
     table = LASERS if kind == "laser" else SHIELDS
-    slot = "laser" if kind == "laser" else "shield"
-
-    def rows():
-        out = []
-        for i, (cost, power) in enumerate(table):
-            name = t(f"space.{kind}_{i}")
-            if i == ship[slot]:
-                value = t("space.dock_fitted")
-            elif i < ship[slot]:
-                value = t("space.dock_scrapped")
-            else:
-                value = t("space.dock_price", price=cost, power=power)
-            out.append((str(i + 1), name, value))
-        return out
-
-    while True:
-        choice = lightbar.menu(
-            term, t(f"space.dock_title_{kind}"), rows,
-            subtitle=t("space.dock_subtitle", credits=ship["credits"]))
-        if not choice or not choice.isdigit():
-            return
-        idx = int(choice) - 1
-        if not 0 <= idx < len(table):
-            continue
-        cost = table[idx][0]
-        if idx <= ship[slot]:
-            term.type_out(t("space.dock_have_better"), delay=0.003)
-            continue
-        if ship["credits"] < cost:
-            term.type_out(t("space.too_poor", missing=cost - ship["credits"]), delay=0.004)
-            continue
-        ship["credits"] -= cost
-        ship[slot] = idx
-        if slot == "shield":
-            ship["hull"] = min(ship["hull"], max_hull(ship))
-        save_ship(ship)
-        term.type_out(t("space.dock_bought", name=t(f"space.{kind}_{idx}")), delay=0.004)
+    rpg.shop(term, CFG, ship, kind, table, kind, after_buy=_refit)
 
 
 def station(term, ship):
@@ -524,14 +431,53 @@ def show_log(term, ship):
     term.pause()
 
 
+# -- The engine wiring -------------------------------------------------------
+
+CFG = {
+    "section": SECTION,
+    "prefix": "space",
+    "fresh": _fresh,
+    "normalize": _normalize,
+    "hp": "hull",
+    "energy": "fuel",
+    "energy_per_day": WARPS_PER_DAY,
+    "max_hp": max_hull,
+    "attack": laser_power,
+    "defense": absorption,
+    "currency": "credits",
+    "loot": ("credits",),
+    "flee_keys": ("w",),
+    "heal_key": "n",
+    "heal_item": "kits",
+    "heal_amount": KIT_REPAIR,
+    "heal_kwarg": "hull",
+    "heal_missing": "space.no_kit",
+    "heal_used": "space.kit_used",
+    "death_title": "space.wreck_title",
+    "death_msg": "space.wreck_msg",
+    "death_hint": "space.wreck_hint",
+    "on_death": _jettison,
+    "stats": show_log,
+    "save": save_ship,
+    "shop": {
+        "owned": "space.dock_fitted",
+        "old": "space.dock_scrapped",
+        "price": "space.dock_price",
+        "have_better": "space.dock_have_better",
+        "too_poor": "space.too_poor",
+        "bought": "space.dock_bought",
+        "title": "space.dock_title_{kind}",
+        "subtitle": "space.dock_subtitle",
+    },
+}
+
+
 # -- The bridge -------------------------------------------------------------
 
 def run(term):
     """Entry point from the arcade: the bridge with all stations."""
     ship = load_ship()
     save_ship(ship)
-    term.rule(t("space.title"))
-    term.type_out(t("space.welcome"), delay=0.005)
 
     def rows():
         state = t("space.state_wrecked") if not ship["alive"] else \
@@ -549,30 +495,16 @@ def run(term):
             ("7", t("space.menu_log"), state),
         ]
 
-    at = "1"
-    while True:
-        choice = lightbar.menu(term, t("space.title"), rows,
-                               subtitle=t("space.menu_subtitle",
-                                          sector=sector_name(ship["sector"]),
-                                          credits=ship["credits"]),
-                               start=at)
-        if not choice or choice in ("q", "0"):
-            save_ship(ship)
-            return
-        at = choice
-        if choice == "1":
-            warp(term, ship)
-        elif choice == "2":
-            trade(term, ship)
-        elif choice == "3":
-            colossus(term, ship)
-        elif choice == "4":
-            _outfitter(term, ship, "laser")
-        elif choice == "5":
-            _outfitter(term, ship, "shield")
-        elif choice == "6":
-            station(term, ship)
-        elif choice == "7":
-            show_log(term, ship)
-        else:
-            term.error(t("space.unknown_choice"))
+    rpg.run_loop(
+        term, CFG, ship, rows,
+        lambda: t("space.menu_subtitle", sector=sector_name(ship["sector"]),
+                  credits=ship["credits"]),
+        {
+            "1": warp,
+            "2": trade,
+            "3": colossus,
+            "4": lambda tm, s: _outfitter(tm, s, "laser"),
+            "5": lambda tm, s: _outfitter(tm, s, "shield"),
+            "6": station,
+            "7": show_log,
+        })
