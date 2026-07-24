@@ -12,7 +12,7 @@ from .constants import (AMBER, GREEN, HEADER_MODES, IMG_SETTINGS, RESET, DIM,
                         invalidate_layout, screen_width)
 from .i18n import t
 from .firecrawl import FIRECRAWL_CLOUD, firecrawl_check, firecrawl_reset
-from .page import normalize_base_url
+from .fetch import normalize_base_url
 from .state import (clear_sections, load_section, save_section, set_ui,
                     toggle_ui)
 

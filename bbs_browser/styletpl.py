@@ -396,7 +396,7 @@ def fetch_html(url, firecrawl_cfg=None):
     itself dials with (Firecrawl, else Playwright, else plain HTTP). On a
     JS-heavy site the bare HTTP document is a husk; selectors learned
     against that husk would never match what actually reaches the screen."""
-    from .page import fetch_source
+    from .fetch import fetch_source
     try:
         return fetch_source(url, firecrawl_cfg)
     except Exception:

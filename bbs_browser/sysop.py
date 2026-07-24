@@ -631,7 +631,7 @@ class SysOp:
             return t("sysop.search_failed")
 
         def im_netz_lesen(url):
-            from .page import fetch_page, normalize_url
+            from .fetch import fetch_page, normalize_url
             fc_cfg = browser.firecrawl if browser else {}
             page, err = fetch_page(normalize_url(url), fc_cfg)
             if err:
@@ -647,7 +647,8 @@ class SysOp:
         def im_netz_suchen(begriff):
             from urllib.parse import quote_plus
             from .firecrawl import firecrawl_search
-            from .page import fetch_page, normalize_base_url, page_text
+            from .fetch import fetch_page, normalize_base_url
+            from .page import page_text
             fc_cfg = browser.firecrawl if browser else {}
             fc_key = firecrawl_key(fc_cfg)
             fc_base = normalize_base_url(fc_cfg.get("base_url"))
