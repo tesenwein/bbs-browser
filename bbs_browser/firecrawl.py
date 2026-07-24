@@ -12,7 +12,7 @@ def firecrawl_api_key(cfg):
     instead of the key itself — reading it raw would send the marker as the
     token and every call would look like an invalid key. Imported late
     because sysop pulls this module back in."""
-    from .sysop import firecrawl_key
+    from .sysop_config import firecrawl_key
     return firecrawl_key(cfg or {})
 
 

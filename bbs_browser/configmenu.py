@@ -136,8 +136,8 @@ def _prompt_preview(ai):
 
 
 def _ai_menu(term, browser, sysop):
-    from .sysop import (PROVIDERS, active_provider, config_key, provider_label,
-                        set_config_key)
+    from .sysop_config import (PROVIDERS, active_provider, config_key,
+                               provider_label, set_config_key)
 
     def rows():
         ai = load_section("ai")
@@ -528,13 +528,13 @@ def _weather_place_prompt(term):
 
 
 def _shell_mode_label():
-    from .sysop import shell_config
+    from .sysop_config import shell_config
     return t("configmenu.shell_mode_" + shell_config()[0])
 
 
 def _shell_menu(term):
     """SysOp's system access: off / with confirmation / free, plus timeout."""
-    from .sysop import SHELL_MODES, shell_config
+    from .sysop_config import SHELL_MODES, shell_config
 
     def rows():
         mode, timeout = shell_config()
@@ -742,7 +742,7 @@ def _mcp_login(term, server):
 
 
 def _firecrawl_menu(term, browser):
-    from .sysop import firecrawl_key, set_firecrawl_key
+    from .sysop_config import firecrawl_key, set_firecrawl_key
 
     def rows():
         fc = load_section("firecrawl")
@@ -787,7 +787,7 @@ def _firecrawl_menu(term, browser):
             fc["base_url"] = normalize_base_url(term.prompt(t("configmenu.prompt_host")))
         elif choice == "5":
             # MCP needs the direct Anthropic key — check exactly that one.
-            from .sysop import config_key
+            from .sysop_config import config_key
             run_firecrawl_check(term, fc, config_key(load_section("ai"), "anthropic"))
             continue
         else:

@@ -276,7 +276,7 @@ class Browser:
         # HTML page now mostly blocks automated requests (bot block,
         # zero results). DDG remains the fallback without Firecrawl.
         fc = self.firecrawl or {}
-        from .sysop import firecrawl_key
+        from .sysop_config import firecrawl_key
         key = firecrawl_key(fc)
         base = normalize_base_url(fc.get("base_url"))
         try:
