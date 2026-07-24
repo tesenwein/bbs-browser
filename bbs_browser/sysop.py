@@ -243,10 +243,51 @@ def persona():
 
 
 def tool_label(name):
-    """Human-readable description of a tool; falls back to the tool name."""
+    """Human-readable description of a tool; falls back to the tool name.
+    MCP tools ('server__tool') get a readable 'MCP server: tool' label."""
     key = "sysop.tool." + name
     label = t(key)
-    return name.replace("_", " ") if label == key else label
+    if label != key:
+        return label
+    if "__" in name:
+        server, _, tool = name.partition("__")
+        return t("sysop.tool.mcp", server=server, tool=tool.replace("_", " "))
+    return name.replace("_", " ")
+
+
+class _ParagraphStream:
+    """Renders streamed reply text paragraph by paragraph, so the answer
+    appears while it is still being generated. Open code fences hold the
+    flush back, so markdown never breaks mid-block."""
+
+    def __init__(self, emit):
+        self._emit = emit
+        self._buf = ""
+
+    def feed(self, delta):
+        self._buf += delta or ""
+        while True:
+            cut = self._flush_point()
+            if cut is None:
+                return
+            chunk, self._buf = self._buf[:cut], self._buf[cut:]
+            if chunk.strip():
+                self._emit(chunk)
+
+    def _flush_point(self):
+        start = 0
+        while True:
+            idx = self._buf.find("\n\n", start)
+            if idx < 0:
+                return None
+            if self._buf[:idx].count("```") % 2 == 0:
+                return idx + 2
+            start = idx + 2
+
+    def close(self):
+        if self._buf.strip():
+            self._emit(self._buf)
+        self._buf = ""
 
 
 def _anthropic_tool_defs(registry):
@@ -982,6 +1023,7 @@ class SysOp:
 
         text = strip_emoji((text or "").strip())
         if text:
+            self._status_done()  # reply text ends the tool status line
             prefix, self._reply_prefix = self._reply_prefix, None
             self.term.markdown(text, prefix=prefix, image=self._image_art)
         return text
@@ -1001,67 +1043,158 @@ class SysOp:
 
     def _run_anthropic(self, client, messages, max_tokens,
                        system=None, registry=None, steps=MAX_AGENT_STEPS, emit=True):
+        from .markdown import strip_emoji
+
         registry = self._tool_registry() if registry is None else registry
         tools = _anthropic_tool_defs(registry)
         convo = list(messages)
         final_text = []
         for _ in range(steps):
-            resp = client.messages.create(
-                model=self._model, max_tokens=max_tokens,
-                system=system or persona(), tools=tools, messages=convo,
-            )
+            resp = self._anthropic_round(client, convo, tools, max_tokens, system, emit)
             self.track(resp)
             convo.append({"role": "assistant", "content": resp.content})
             tool_uses = [b for b in resp.content if getattr(b, "type", None) == "tool_use"]
             for block in resp.content:
-                if getattr(block, "type", None) == "text":
-                    text = self._emit_text(block.text) if emit else (block.text or "").strip()
-                    if text:
-                        final_text.append(text)
-            for block in tool_uses:
-                self._status(t("sysop.agent_tool_use", name=tool_label(block.name)))
+                if getattr(block, "type", None) != "text":
+                    continue
+                # In streaming mode the text is already on screen — here it
+                # is only collected (emoji-free, like the emitted version).
+                text = strip_emoji((block.text or "").strip()) if emit \
+                    else (block.text or "").strip()
+                if text:
+                    final_text.append(text)
             if not tool_uses:
                 break
-            convo.append({"role": "user", "content": [
-                {"type": "tool_result", "tool_use_id": block.id,
-                 "content": self._dispatch(registry, block.name, block.input)}
-                for block in tool_uses
-            ]})
+            results = []
+            for block in tool_uses:
+                self._status(t("sysop.agent_tool_use", name=tool_label(block.name)))
+                results.append({"type": "tool_result", "tool_use_id": block.id,
+                                "content": self._dispatch(registry, block.name, block.input)})
+            convo.append({"role": "user", "content": results})
         return "\n".join(final_text) or None
+
+    def _anthropic_round(self, client, convo, tools, max_tokens, system, live):
+        """One model round. `live` streams: text appears paragraph by
+        paragraph, tool calls show up on the status line the moment the
+        model starts them."""
+        kwargs = dict(model=self._model, max_tokens=max_tokens,
+                      system=system or persona(), tools=tools, messages=convo)
+        if not live or not hasattr(client.messages, "stream"):
+            resp = client.messages.create(**kwargs)
+            if live:    # client without streaming (e.g. test doubles)
+                for block in resp.content:
+                    if getattr(block, "type", None) == "text":
+                        self._emit_text(block.text)
+            return resp
+        out = _ParagraphStream(self._emit_text)
+        with client.messages.stream(**kwargs) as stream:
+            for event in stream:
+                etype = getattr(event, "type", "")
+                if etype == "text":
+                    out.feed(event.text)
+                elif (etype == "content_block_start"
+                      and getattr(event.content_block, "type", "") == "tool_use"):
+                    self._status(t("sysop.agent_tool_use",
+                                   name=tool_label(event.content_block.name)))
+            resp = stream.get_final_message()
+        out.close()
+        return resp
 
     def _run_openai(self, client, messages, max_tokens,
                     system=None, registry=None, steps=MAX_AGENT_STEPS, emit=True):
+        from .markdown import strip_emoji
+
         registry = self._tool_registry() if registry is None else registry
         tools = _openai_tool_defs(registry)
         convo = [{"role": "system", "content": system or persona()}] + list(messages)
         final_text = []
         for _ in range(steps):
-            resp = client.chat.completions.create(
-                model=self._model, max_tokens=max_tokens,
-                messages=convo, tools=tools,
-            )
-            self.track(_openai_usage(resp))
-            msg = resp.choices[0].message
-            text = self._emit_text(msg.content) if emit else (msg.content or "").strip()
+            raw, calls, usage = self._openai_round(client, convo, tools, max_tokens, emit)
+            self.track(usage)
+            text = strip_emoji(raw.strip()) if emit else raw.strip()
             if text:
                 final_text.append(text)
-            calls = list(msg.tool_calls or [])
             if not calls:
                 break
-            convo.append({"role": "assistant", "content": msg.content or "", "tool_calls": [
-                {"id": tc.id, "type": "function",
-                 "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+            convo.append({"role": "assistant", "content": raw or "", "tool_calls": [
+                {"id": tc["id"], "type": "function",
+                 "function": {"name": tc["name"], "arguments": tc["arguments"]}}
                 for tc in calls
             ]})
             for tc in calls:
-                self._status(t("sysop.agent_tool_use", name=tool_label(tc.function.name)))
+                self._status(t("sysop.agent_tool_use", name=tool_label(tc["name"])))
                 try:
-                    args = json.loads(tc.function.arguments or "{}")
+                    args = json.loads(tc["arguments"] or "{}")
                 except (ValueError, TypeError):
                     args = {}
-                convo.append({"role": "tool", "tool_call_id": tc.id,
-                              "content": self._dispatch(registry, tc.function.name, args)})
+                convo.append({"role": "tool", "tool_call_id": tc["id"],
+                              "content": self._dispatch(registry, tc["name"], args)})
         return "\n".join(final_text) or None
+
+    def _openai_round(self, client, convo, tools, max_tokens, live):
+        """One model round. Returns (text, tool calls as dicts, usage
+        carrier). `live` streams: text appears paragraph by paragraph,
+        tool calls hit the status line as soon as their name arrives."""
+        kwargs = dict(model=self._model, max_tokens=max_tokens,
+                      messages=convo, tools=tools)
+        if live:
+            stream = self._open_openai_stream(client, kwargs)
+            if stream is not None:
+                return self._consume_openai_stream(stream)
+        resp = client.chat.completions.create(**kwargs)
+        msg = resp.choices[0].message
+        if live:
+            self._emit_text(msg.content)
+        calls = [{"id": tc.id, "name": tc.function.name,
+                  "arguments": tc.function.arguments or ""}
+                 for tc in (msg.tool_calls or [])]
+        return msg.content or "", calls, _openai_usage(resp)
+
+    def _open_openai_stream(self, client, kwargs):
+        """Opens a completion stream; None when the gateway (or a test
+        double) doesn't support streaming — the round then runs one-shot."""
+        try:
+            return client.chat.completions.create(
+                stream=True, stream_options={"include_usage": True}, **kwargs)
+        except Exception:
+            pass    # maybe just stream_options unknown — once more without
+        try:
+            return client.chat.completions.create(stream=True, **kwargs)
+        except Exception:
+            return None
+
+    def _consume_openai_stream(self, stream):
+        out = _ParagraphStream(self._emit_text)
+        parts, slots, usage = [], {}, None
+        for chunk in stream:
+            usage = getattr(chunk, "usage", None) or usage
+            if not getattr(chunk, "choices", None):
+                continue
+            delta = chunk.choices[0].delta
+            if delta is None:
+                continue
+            if delta.content:
+                parts.append(delta.content)
+                out.feed(delta.content)
+            for tc in (delta.tool_calls or []):
+                slot = slots.setdefault(tc.index, {"id": "", "name": "", "arguments": ""})
+                if tc.id:
+                    slot["id"] = tc.id
+                fn = tc.function
+                if fn and fn.name and not slot["name"]:
+                    slot["name"] = fn.name
+                    self._status(t("sysop.agent_tool_use", name=tool_label(fn.name)))
+                if fn and fn.arguments:
+                    slot["arguments"] += fn.arguments
+        out.close()
+        calls = [slots[i] for i in sorted(slots) if slots[i]["name"]]
+        if usage is not None:
+            usage = _UsageCarrier(_NormalizedUsage(
+                getattr(usage, "prompt_tokens", 0),
+                getattr(usage, "completion_tokens", 0)))
+        else:
+            usage = _UsageCarrier(None)
+        return "".join(parts), calls, usage
 
     def _raw_complete(self, system, messages, max_tokens):
         """A single completion without tools, provider-neutral. Returns the

@@ -255,6 +255,10 @@ STRINGS = {
         "de": "ich muss dafuer ans System",
         "en": "I need to go to the system for that",
     },
+    "sysop.tool.mcp": {
+        "de": "ich frag {server} nach {tool}",
+        "en": "asking {server} for {tool}",
+    },
     "sysop.error_agent": {
         "de": "Dem SysOp ist die Leitung weggebrochen - {error}",
         "en": "The SysOp's line dropped out - {error}",

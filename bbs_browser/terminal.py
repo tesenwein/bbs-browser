@@ -65,7 +65,8 @@ class Terminal:
         self.skip = False     # Ctrl+C pressed: print the rest of the screen immediately
         self.interrupts = 0   # consecutive Ctrl+C at the prompt (2 = hang up)
         self.skippable = False  # dial-in running: a keystroke ends the effects
-        self._status_on = False  # a transient status line is on screen
+        self._status_on = False    # a transient status line is on screen
+        self._status_text = None   # its text — redrawn after regular output
 
     def check_skip(self):
         """True once the sequence should run without effects.
@@ -99,33 +100,52 @@ class Terminal:
     #
     # One dimmed line that overwrites itself: progress that nobody needs
     # to keep (tool calls, probing, verify pages) shows only its LATEST
-    # step. Any regular output clears it first, so it never mixes into
-    # the transcript.
+    # step. It is sticky: regular output lifts it briefly, prints, and
+    # redraws it below — so the line stays visible even while tools print
+    # their own output. Only prompt(), clear() and status_clear() end it.
 
     def status(self, text):
         """Shows `text` on the transient status line (replacing the
         previous one). Falls back to a normal line without a TTY."""
         if not sys.stdout.isatty():
-            self.type_out(text, delay=0.001)
+            if text != self._status_text:
+                self.type_out(text, delay=0.001)
+            self._status_text = text
             return
+        self._status_text = text
+        self._status_draw()
+
+    def _status_draw(self):
         sys.stdout.write("\r\x1b[2K" + self.color + DIM
-                         + text[:screen_width() - 1] + RESET)
+                         + self._status_text[:screen_width() - 1] + RESET)
         sys.stdout.flush()
         self._status_on = True
 
     def status_clear(self):
-        """Wipes the status line (no-op if none is showing)."""
+        """Ends the status line: wipes it and forgets its text."""
+        self._status_text = None
+        self._status_wipe()
+
+    def _status_wipe(self):
+        """Takes the line off screen without forgetting it — regular
+        output calls this first so the status never mixes into it."""
         if self._status_on:
             sys.stdout.write("\r\x1b[2K")
             sys.stdout.flush()
             self._status_on = False
 
+    def _status_redraw(self):
+        """Puts the sticky line back after regular output."""
+        if self._status_text and sys.stdout.isatty():
+            self._status_draw()
+
     def emit(self, styled_text):
         """Prints an already-styled line — throttled when baud is set, as if
         it were coming through the modem (ANSI codes cost no time)."""
-        self.status_clear()
+        self._status_wipe()
         if not self.baud or self.skip:
             print(styled_text)
+            self._status_redraw()
             return
         delay = 10.0 / self.baud
         in_esc = False
@@ -146,6 +166,7 @@ class Terminal:
                 sys.stdout.write(styled_text[idx + 1:])
                 break
         print()
+        self._status_redraw()
 
     def tone(self, section):
         """A piece of modem sound — only when sound is enabled. Returns an
@@ -173,10 +194,12 @@ class Terminal:
             time.sleep(0.12)
 
     def type_out(self, text, delay=0.006, newline=True):
-        self.status_clear()
+        self._status_wipe()
         if self.fast or self.skip or delay <= 0:
             print(self.color + text + RESET, end="\n" if newline else "")
             sys.stdout.flush()
+            if newline:
+                self._status_redraw()
             return
         for idx, ch in enumerate(text):
             sys.stdout.write(self.color + ch + RESET)
@@ -193,6 +216,7 @@ class Terminal:
                 break
         if newline:
             print()
+            self._status_redraw()
 
     def markdown(self, text, prefix=None, image=None):
         """Prints an AI markdown block, rendered by rich in phosphor tone.
@@ -207,7 +231,7 @@ class Terminal:
         would break them apart."""
         from .markdown import render, split_images
 
-        self.status_clear()
+        self._status_wipe()
         lines = []
         for segment in split_images(text) if image else [("text", text)]:
             if segment[0] == "text":
@@ -217,6 +241,7 @@ class Terminal:
         if not lines:
             if prefix:
                 print(self.color + prefix + RESET)
+            self._status_redraw()
             return
         if prefix:
             lines = [self.color + prefix + lines[0]] + lines[1:]
@@ -225,6 +250,7 @@ class Terminal:
                 self.emit(line + RESET)
             else:
                 print(line + RESET)
+        self._status_redraw()
 
     def _image_lines(self, image, url, alt):
         """Character art for one markdown image — label plus picture, in the
@@ -252,32 +278,38 @@ class Terminal:
         return [label] + body + [""]
 
     def line(self, char="=", n=None):
-        self.status_clear()
+        self._status_wipe()
         print(self.color + char * (screen_width() if n is None else n) + RESET)
+        self._status_redraw()
 
     def rule(self, label="", char="─"):
-        self.status_clear()
+        self._status_wipe()
         if label:
             deco = f"{char * 3}[ {label} ]"
             print(self.color + deco + char * max(0, screen_width() - len(deco)) + RESET)
         else:
             print(self.color + char * screen_width() + RESET)
+        self._status_redraw()
 
     def box(self, rows):
-        self.status_clear()
+        self._status_wipe()
         inner = screen_width() - 4
         print(self.color + "╔" + "═" * (screen_width() - 2) + "╗" + RESET)
         for row in rows:
             print(self.color + "║ " + BOLD + row[:inner].ljust(inner) + RESET + self.color + " ║" + RESET)
         print(self.color + "╚" + "═" * (screen_width() - 2) + "╝" + RESET)
+        self._status_redraw()
 
     def clear(self):
-        self._status_on = False  # the screen wipe takes the line with it
+        # The screen wipe takes the line with it — and ends it for good.
+        self._status_on = False
+        self._status_text = None
         print(CLEAR, end="")
 
     def status_bar(self, text):
-        self.status_clear()
+        self._status_wipe()
         print(self.color + INVERT + text[:screen_width()].ljust(screen_width()) + RESET)
+        self._status_redraw()
 
     def prompt(self, label=None):
         if label is None:
