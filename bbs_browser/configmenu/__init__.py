@@ -13,17 +13,15 @@ from .. import lightbar
 from ..i18n import t
 from ..state import load_section
 
-from ._shared import _ask_number, _confirm, _reset_all, _reset_display
-from .ai import _ai_menu, _prompt_preview, _template_menu, _template_summary
+from ._shared import _confirm, _reset_all
+from .ai import _ai_menu
 from .bulletins import (_bulletin_menu, _bulletin_sources_menu,
                         _bulletin_summary, _source_kind_label, _ttl_label)
-from .display import (BAUD_RATES, COLOR_MODES, _after_header_change,
-                      _display_menu, _width_label)
+from .display import _display_menu, _width_label
 from .firecrawl import _firecrawl_menu, run_firecrawl_check
-from .mcp import (_mcp_add, _mcp_count_label, _mcp_login, _mcp_menu,
-                  _mcp_server_menu, _mcp_status_label)
+from .mcp import _mcp_count_label, _mcp_menu, _mcp_server_menu, _mcp_status_label
 from .shell import _shell_menu, _shell_mode_label
-from .weather import _weather_menu, _weather_place_prompt, _weather_summary
+from .weather import _weather_menu, _weather_summary
 
 
 def config_menu(term, browser, sysop):

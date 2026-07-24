@@ -28,7 +28,7 @@ from .sysop_config import (ENV_KEYS, MAX_AGENT_STEPS, MAX_PAGE_CHARS,
                            detect_provider, estimate_cost, firecrawl_key,
                            persona, price_for, provider_label, set_config_key,
                            tool_label)
-from .sysop_chat import CHAT_CHANNEL, CHAT_TITLE_MAX, REPLAY_LINES  # noqa: F401  (re-export)
+from .sysop_chat import CHAT_CHANNEL, CHAT_TITLE_MAX  # noqa: F401  (re-export)
 from .sysop_tools import build_tool_registry
 
 
@@ -689,13 +689,6 @@ class SysOp:
     # Implementation lives in sysop_chat; these thin delegates keep the
     # public surface (navigation, chatlog, tests) unchanged.
 
-    def chat_label(self, channel=None):
-        """Display name of a chat: its title, else 'SYSOP' / 'SYSOP #N'."""
-        return sysop_chat.chat_label(self, channel)
-
-    def _switch_chat(self, channel):
-        return sysop_chat.switch_chat(self, channel)
-
     def new_chat(self):
         """Opens a fresh conversation. The base channel is reused as long
         as it has never been written to."""
@@ -706,28 +699,10 @@ class SysOp:
         With no stored chats it jumps straight into the first one."""
         return sysop_chat.chat_board(self)
 
-    def _pick_chat(self):
-        return sysop_chat.pick_chat(self)
-
-    def _chat_divider(self):
-        return sysop_chat.chat_divider(self)
-
-    def _replay_tail(self):
-        return sysop_chat.replay_tail(self)
-
-    def _auto_title(self, question, reply):
-        return sysop_chat.auto_title(self, question, reply)
-
-    def _chat_command(self, msg):
-        return sysop_chat.chat_command(self, msg)
-
     def chat(self, channel=None):
         """Interactive chat with the SysOp. Empty input or 'exit' ends it;
         /neu, /chats and /name manage the conversations."""
         return sysop_chat.chat(self, channel)
-
-    def _chat_session(self):
-        return sysop_chat.chat_session(self)
 
     # -- Firecrawl via MCP ----------------------------------------------
 
