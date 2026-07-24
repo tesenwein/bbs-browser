@@ -163,7 +163,7 @@ def command_loop(browser, sysop, initial=None):
         elif op == "fc":
             from .configmenu import run_firecrawl_check
             from .state import load_section
-            from .sysop import config_key
+            from .sysop_config import config_key
             run_firecrawl_check(term, browser.firecrawl, config_key(load_section("ai"), "anthropic"))
         elif op == "c":
             from .configmenu import config_menu

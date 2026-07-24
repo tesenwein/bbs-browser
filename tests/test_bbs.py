@@ -886,7 +886,8 @@ for cmd in ("d", "s", "b", "f", "r", "l", "m", "a", "h", "sum", "ask", "go", "x"
     assert manual.lookup(cmd), f"Befehl '{cmd}' fehlt im Handbuch"
 
 # Token consumption
-from bbs_browser.sysop import SysOp as _SysOp, estimate_cost, price_for
+from bbs_browser.sysop import SysOp as _SysOp
+from bbs_browser.sysop_config import estimate_cost, price_for
 from bbs_browser.terminal import Terminal as _Terminal
 from bbs_browser import db as _db
 from bbs_browser import state as _state
@@ -918,7 +919,7 @@ assert manual.lookup("u"), "Token-Befehl fehlt im Handbuch"
 # SysOp default prompt (config menu 'c' -> '4') takes effect IMMEDIATELY: persona()
 # reads it fresh from the AI config on every response — no cache that would
 # only pick up a change after a restart.
-from bbs_browser.sysop import persona as _persona, custom_prompt as _custom_prompt
+from bbs_browser.sysop_config import persona as _persona, custom_prompt as _custom_prompt
 _saved_ai = _state.load_section("ai")
 _state.save_section("ai", {})
 assert _custom_prompt() == "" and _t("sysop.persona_custom_header") not in _persona()

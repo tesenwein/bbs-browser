@@ -58,7 +58,7 @@ def main():
         raise SystemExit(list_links_only(args.url))
 
     # One-time migration of API keys from older versions into the keychain.
-    from .sysop import migrate_keys
+    from .sysop_config import migrate_keys
     migrate_keys()
 
     # Check in the background whether a new release is available — the
