@@ -208,10 +208,10 @@ def _section(title, rows, width):
     command and short description in two columns."""
     import textwrap
 
+    from .boxes import single_bottom, single_top
+
     inner = width - 4                      # '│ ' + content + ' │'
     desc_col = max(20, inner - SYNTAX_COL - 1)
-    from .boxes import single_top
-
     out = [single_top(width, title)]
     for syntax, kurz in rows:
         wrapped = textwrap.wrap(kurz, desc_col) or [""]
@@ -223,8 +223,6 @@ def _section(title, rows, width):
         for i, part in enumerate(wrapped):
             left = first if i == 0 else ""
             out.append(f"│ {left:<{SYNTAX_COL}} {part:<{desc_col}} │")
-    from .boxes import single_bottom
-
     out.append(single_bottom(width))
     return out
 

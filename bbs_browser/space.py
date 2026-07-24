@@ -162,10 +162,6 @@ def _caller_pirate(ship):
 
 # -- Combat -----------------------------------------------------------------
 
-def _bar(term, ship, foe):
-    rpg.bar(term, CFG, ship, foe)
-
-
 def fight(term, ship, foe, can_flee=True):
     """A fight until it's decided. Returns 'win', 'flee', or 'dead'."""
     return rpg.fight(term, CFG, ship, foe, can_flee)

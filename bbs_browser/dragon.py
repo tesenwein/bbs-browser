@@ -134,10 +134,6 @@ def _caller_foe(level):
 
 # -- Combat -----------------------------------------------------------------
 
-def _bar(term, hero, foe):
-    rpg.bar(term, CFG, hero, foe)
-
-
 def fight(term, hero, foe, can_flee=True):
     """A fight until it's decided. Returns 'win', 'flee', or 'dead'."""
     return rpg.fight(term, CFG, hero, foe, can_flee)
