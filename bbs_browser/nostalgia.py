@@ -10,7 +10,7 @@ import textwrap
 import time
 from datetime import datetime
 
-from . import keys, lightbar
+from . import boxes, keys, lightbar
 from .constants import BOLD, DIM, RESET, screen_width
 from .i18n import t
 from .state import load_section, save_section
@@ -170,9 +170,9 @@ def system_panel_lines(term, prof, last_call, browser=None):
         out.append(c + "║" + text[:inner + 2].ljust(inner + 2) + "║" + RESET)
 
     def divider(left="╟", right="╢"):
-        out.append(c + left + "─" * (screen_width() - 2) + right + RESET)
+        out.append(c + boxes.double_divider(screen_width(), left, right) + RESET)
 
-    out.append(c + "╔" + "═" * (screen_width() - 2) + "╗" + RESET)
+    out.append(c + boxes.double_top(screen_width()) + RESET)
     head = f" {SYSTEM_NAME} "
     out.append(c + "║" + BOLD + head.center(inner + 2) + RESET + c + "║" + RESET)
     divider()
@@ -208,7 +208,7 @@ def system_panel_lines(term, prof, last_call, browser=None):
     for bulletin in shown:
         for line in textwrap.wrap(bulletin, inner):
             out.append(c + "║ " + DIM + line.ljust(inner) + RESET + c + " ║" + RESET)
-    out.append(c + "╚" + "═" * (screen_width() - 2) + "╝" + RESET)
+    out.append(c + boxes.double_bottom(screen_width()) + RESET)
     return out
 
 
@@ -528,10 +528,6 @@ def _board_table(term, favs, recents):
     col_l = (screen_width() - 3) // 2
     col_r = screen_width() - 3 - col_l
 
-    def seg(title, width):
-        head = f"─[ {title} ]"
-        return head[:width].ljust(width, "─")
-
     def cell(text, width):
         return (" " + text)[:width].ljust(width)
 
@@ -539,12 +535,12 @@ def _board_table(term, favs, recents):
     rows_r = [f"[{i:>2}] {e['title']}" for i, e in enumerate(recents, 1)] or [t("nostalgia.no_history")]
 
     c = term.color
-    print(c + "┌" + seg(t("nostalgia.header_bookmarks"), col_l) + "┬" + seg(t("nostalgia.header_recent"), col_r) + "┐" + RESET)
+    print(c + boxes.split_top(col_l, col_r, t("nostalgia.header_bookmarks"), t("nostalgia.header_recent")) + RESET)
     for row in range(max(len(rows_l), len(rows_r))):
         left = rows_l[row] if row < len(rows_l) else ""
         right = rows_r[row] if row < len(rows_r) else ""
         print(c + "│" + cell(left, col_l) + "│" + DIM + cell(right, col_r) + RESET + c + "│" + RESET)
-    print(c + "└" + "─" * col_l + "┴" + "─" * col_r + "┘" + RESET)
+    print(c + boxes.split_bottom(col_l, col_r) + RESET)
     return None
 
 
